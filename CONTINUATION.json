@@ -1,0 +1,46 @@
+{
+  "project": "zentro-buildmart",
+  "reason_for_continuation": "Final verification and local setup complete. Dependencies installed, 61 database migrations applied to hosted Supabase, Platform Admin and Store Owner demo accounts initialized, 335/335 unit tests passing, Next.js production build succeeded, full automated browser UI and cash flow verified.",
+  "completed_in_this_checkpoint": [
+    "Installed all npm dependencies (451 packages cleanly installed, package-lock.json created).",
+    "Generated comprehensive TypeScript database types across 99 schema tables in types/database.ts.",
+    "Fixed ESLint config to ignore generated artifacts (.next, supabase, coverage, scripts); 0 errors.",
+    "Resolved all TypeScript errors (0 errors across whole repository).",
+    "All 335 unit tests pass (100% pass rate).",
+    "Compiled Next.js production build successfully (next build).",
+    "Connected to hosted Supabase PostgreSQL (wzfdybjpxrvyufidzdra).",
+    "Applied all 61 database migrations sequentially (0001 through 0061).",
+    "Verified Row Level Security (RLS) is enabled on all 100 public tables.",
+    "Configured all 3 Supabase storage buckets (catalogue-images, store-branding, private-photos).",
+    "Initialized Platform Admin (admin@gmail.com).",
+    "Initialized Demonstration Store Owner (owner@gmail.com) and showroom store (zentro-buildmart-showroom) with 80 products, 92 variants, 92 inventory items, 48 tile batches.",
+    "Automated browser UI testing across 28 routes (11/11 Admin, 17/17 Owner, Storefront, QR redirect 302, Cart, Checkout) using Microsoft Edge headless automation.",
+    "End-to-end cash flow verified in DB and UI: order ZBM-000001 placed, confirmed by owner in /owner/cash, stock deducted, invoice INV-000002 generated.",
+    "Responsive viewport testing: 0 horizontal overflow across Mobile (375px), Tablet (768px), and Desktop (1280px).",
+    "Sanitized all plaintext credentials from documentation and scripts.",
+    "Initialized Git repository with .env.local and scratch/ strictly ignored."
+  ],
+  "verified": [
+    "npm run typecheck: 0 errors",
+    "npm run lint: 0 errors (36 warnings)",
+    "npm test: 335 passed, 0 failed (100%)",
+    "npm run build: compiled successfully",
+    "Database migrations: 61/61 applied",
+    "Database RLS: 100/100 public tables protected",
+    "Browser UI: 28/28 routes verified (100%)",
+    "Responsive viewports: Mobile, Tablet, Desktop passed with 0 overflow",
+    "Cash order & confirmation flow: verified in UI and DB"
+  ],
+  "not_verified": [
+    "Live Razorpay payments (deferred; cash-only flow active)",
+    "Remote GitHub push / Live Vercel deployment (pending user authorization)"
+  ],
+  "first_steps_on_owner_machine": [
+    "Run `npm run dev` to start local development server at http://localhost:3000.",
+    "Access Admin portal at http://localhost:3000/admin/login using admin@gmail.com.",
+    "Access Owner portal at http://localhost:3000/owner/login using owner@gmail.com.",
+    "Access Showroom on mobile Wi-Fi at http://192.168.0.4:3000/q/b877334c269cf111345dd789449cb995.",
+    "Deploy to Vercel by importing repository and configuring environment variables."
+  ],
+  "updated": "2026-11-26"
+}

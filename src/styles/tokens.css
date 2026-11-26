@@ -1,0 +1,82 @@
+/*
+ * ZENTRO BuildMart design tokens.
+ * Brand palette from the project spec; type, radius and spacing from Stitch DESIGN.md.
+ * Stitch Material surface tokens are kept as "stitch-*" for component states
+ * (see docs/SCREEN_ROUTE_MAP.md, section 3, for the open colour decision).
+ */
+:root {
+  /* Brand palette (spec) */
+  --zb-burgundy: #6a0d2a;
+  --zb-cream: #fff4e6;
+  --zb-gold: #c9a45c;
+  --zb-deep-burgundy: #45081c;
+  --zb-text: #3b2529;
+  --zb-text-muted: #806c65;
+  --zb-card: #fffaf4;
+  --zb-border: #e6d5c3;
+
+  /* Semantic status (DESIGN.md) */
+  --zb-success: #287d50;
+  --zb-warning: #b7791f;
+  --zb-error: #b42318;
+
+  /* Stitch Material tokens used by exported screens */
+  --stitch-surface: #fff8f7;
+  --stitch-surface-container: #ffe9eb;
+  --stitch-outline-variant: #dcc0c3;
+  --stitch-on-surface-variant: #554244;
+
+  /* Typography */
+  --zb-font-display: "Playfair Display", Georgia, serif;
+  --zb-font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Radius */
+  --zb-radius-control: 0.5rem;  /* buttons, inputs, dropdowns */
+  --zb-radius-card: 0.75rem;    /* cards, modals, product containers */
+  --zb-radius-pill: 9999px;     /* badges, chips, avatars */
+
+  /* Elevation */
+  --zb-shadow-rest: 0 4px 12px 0 rgba(59, 37, 41, 0.06);
+  --zb-shadow-hover: 0 8px 24px 0 rgba(59, 37, 41, 0.10);
+
+  /* Spacing */
+  --zb-gutter: 1.5rem;
+  --zb-margin: 2rem;
+  --zb-card-padding: 1.5rem;
+  --zb-section-gap: 2.5rem;
+  --zb-max-width: 1440px;
+}
+
+body {
+  background: var(--zb-cream);
+  color: var(--zb-text);
+  font-family: var(--zb-font-ui);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.zb-display {
+  font-family: var(--zb-font-display);
+  font-weight: 600;
+  font-size: 48px;
+  line-height: 56px;
+  letter-spacing: -0.02em;
+}
+
+.zb-metric {
+  font-family: var(--zb-font-ui);
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 34px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.zb-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--zb-text-muted);
+}

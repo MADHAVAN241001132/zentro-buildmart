@@ -1,0 +1,31 @@
+{
+  "framework": "nextjs",
+  "regions": [
+    "bom1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/expire-payments",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/storage-orphans",
+      "schedule": "30 20 * * *"
+    },
+    {
+      "path": "/api/cron/expire-quotations",
+      "schedule": "0 * * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    }
+  ]
+}
