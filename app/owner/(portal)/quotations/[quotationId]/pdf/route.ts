@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isFeatureEnabled } from '@/lib/services/entitlements';
 import { ownerQuotationView } from '@/lib/services/quotations';
 import { ownerPermissionForRoute, routeDeniedResponse } from '@/lib/services/owner';
 import { isUuid, quotationErrorResponse, quotationPdfResponse } from '@/lib/quotations/pdf-response';
@@ -12,6 +13,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ quo
     owner = await ownerPermissionForRoute('quotations');
   } catch (error) {
     return routeDeniedResponse(error);
+  }
+  if (!(await isFeatureEnabled(owner.storeId, 'quotations'))) {
+    return NextResponse.json({ error: 'not found' }, { status: 404 });
   }
   const { quotationId } = await params;
   if (!isUuid(quotationId)) return NextResponse.json({ error: 'not found' }, { status: 404 });

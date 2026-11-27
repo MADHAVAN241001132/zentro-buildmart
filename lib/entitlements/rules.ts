@@ -113,28 +113,46 @@ export function quotaDecision(current: number, limit: number | null, unlimited: 
  * setup and allowance stores are blocked only by an explicit disabled flag; subscribed stores
  * need an active subscription, an enabled flag, and a plan that does not explicitly disable the key.
  */
+/**
+ * Feature decision — fail-closed.
+ *
+ * A feature is enabled ONLY when the flag record exists AND is explicitly `true`.
+ * Missing flag records (undefined) always mean disabled — no feature is ever
+ * assumed available by default.
+ *
+ * For setup/allowance stores: flag must be explicitly enabled (no default-on).
+ * For active stores: flag must be explicitly enabled AND plan must not block it.
+ * For all other states: always disabled.
+ */
 export function featureDecision(
   state: SubscriptionState,
   flagEnabled: boolean | undefined,
   planFeatures: Record<string, unknown>,
   key: string,
 ): boolean {
-  if (state === 'setup' || state === 'allowance') return flagEnabled ?? true;
+  // Fail closed: undefined or false means disabled, always.
+  if (flagEnabled !== true) return false;
+  // Setup and allowance: flag is the only gate — plan features don't apply.
+  if (state === 'setup' || state === 'allowance') return true;
+  // Active: also check that the plan doesn't explicitly block the feature.
   if (state !== 'active') return false;
-  if (!flagEnabled) return false;
   return planFeatures[key] !== false;
 }
 
 /** Keys that gate premium modules. Kept in step with FEATURE_KEYS in lib/validation/admin.ts. */
 export const PREMIUM_FEATURE_KEYS = [
+  'online_payments',
   'pos_billing',
   'quotations',
-  'room_visualiser',
-  'house_project_planner',
-  'bulk_imports',
-  'qr_scan_analytics',
+  'credit_ledger',
+  'delivery',
+  'coupons',
   'tile_batches',
   'purchase_orders',
+  'room_visualiser',
+  'qr_scan_analytics',
+  'house_project_planner',
+  'bulk_imports',
   'reports',
 ] as const;
 

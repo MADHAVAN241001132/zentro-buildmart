@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { addToCartSchema, cartLineSchema, checkoutSchema, couponCodeSchema, firstIssue } from '@/lib/validation';
 import { CartError, addToCart, removeCartItem, setCartCoupon, setCartQuantity } from '@/lib/services/cart';
 import { CheckoutError, placeOrder } from '@/lib/services/checkout';
+import { isFeatureEnabled } from '@/lib/services/entitlements';
 import { ensureGuestSession, readGuestSession } from '@/lib/services/guest';
 import { getStoreBySlug } from '@/lib/services/storefront';
 
@@ -90,6 +91,9 @@ export async function applyCartCouponAction(storeSlug: string, _prev: ActionStat
   const code = parsed.data === '' ? null : parsed.data.toUpperCase();
   try {
     const store = await resolveStore(storeSlug);
+    if (code !== null && !(await isFeatureEnabled(store.id, 'coupons'))) {
+      return fail('Coupons are not enabled for this showroom');
+    }
     const session = await readGuestSession(store.id, storeSlug);
     if (!session) return fail('Your cart is empty');
     await setCartCoupon(store.id, session.id, code);

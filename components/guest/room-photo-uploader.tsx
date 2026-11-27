@@ -1,20 +1,31 @@
 'use client';
 
-import { useRef, useState, type FormEvent } from 'react';
+import { useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { Camera, ImagePlus, UploadCloud } from 'lucide-react';
 import { MAX_BYTES, BUCKETS } from '@/lib/storage/image-policy';
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
-/** Hosting refuses request bodies above about 4.5 MB, so larger photos are scaled down in the browser first. */
 const BROWSER_TARGET_BYTES = 4 * 1024 * 1024;
 const LONG_EDGE_PX = 2400;
+
+const ROOM_TYPES = [
+  'Living room',
+  'Bedroom',
+  'Bathroom',
+  'Kitchen',
+  'Dining room',
+  'Entrance',
+  'Hallway',
+  'Balcony',
+  'Commercial interior',
+];
 
 export interface UploadablePhoto {
   id: string;
   label: string;
 }
 
-/** Scales a photograph down to a long edge of LONG_EDGE_PX and re-encodes as JPEG. Returns the file unchanged when it is already small. */
 async function fitForUpload(file: File): Promise<File> {
   if (file.size <= BROWSER_TARGET_BYTES) return file;
   const bitmap = await createImageBitmap(file);
@@ -31,15 +42,15 @@ async function fitForUpload(file: File): Promise<File> {
   return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
 }
 
-/**
- * Uploads a room photograph with a progress bar. Can replace an existing photograph; the server stores the new
- * one before removing the old one. Errors are shown in words, next to the form.
- */
 export function RoomPhotoUploader({ storeSlug, photos }: { storeSlug: string; photos: UploadablePhoto[] }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [label, setLabel] = useState('');
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [label, setLabel] = useState('Living room');
   const [replaces, setReplaces] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -48,12 +59,33 @@ export function RoomPhotoUploader({ storeSlug, photos }: { storeSlug: string; ph
     setMessage({ ok: false, text });
   }
 
+  function pickFile(file: File | null) {
+    if (!file) return;
+    if (!ACCEPTED.includes(file.type)) {
+      return fail('Use a JPEG, PNG or WebP photograph.');
+    }
+    if (file.size > MAX_BYTES[BUCKETS.privatePhotos]!) {
+      return fail('That photograph is larger than 8 MB. Choose a smaller one.');
+    }
+    setMessage(null);
+    setSelectedFile(file);
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  }
+
+  function handleDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0] ?? null;
+    pickFile(file);
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const file = inputRef.current?.files?.[0];
-    if (!file) return fail('Choose a photograph to upload.');
-    if (!ACCEPTED.includes(file.type)) return fail('Use a JPEG, PNG or WebP photograph.');
-    if (file.size > MAX_BYTES[BUCKETS.privatePhotos]!) return fail('That photograph is larger than 8 MB. Choose a smaller one.');
+    const file = selectedFile ?? inputRef.current?.files?.[0] ?? cameraRef.current?.files?.[0];
+    if (!file) return fail('Choose or drop a room photograph to upload.');
 
     setMessage(null);
     setProgress(0);
@@ -72,8 +104,8 @@ export function RoomPhotoUploader({ storeSlug, photos }: { storeSlug: string; ph
     await new Promise<void>((resolve) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `/store/${storeSlug}/visualizer/upload`);
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) setProgress(Math.round((event.loaded / event.total) * 100));
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100));
       };
       xhr.onerror = () => {
         fail('The upload failed because of a network problem. Check your connection and try again.');
@@ -88,10 +120,15 @@ export function RoomPhotoUploader({ storeSlug, photos }: { storeSlug: string; ph
         }
         if (xhr.status >= 200 && xhr.status < 300 && json.ok) {
           setProgress(null);
-          setLabel('');
+          setSelectedFile(null);
+          setPreviewUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return null;
+          });
           setReplaces('');
           if (inputRef.current) inputRef.current.value = '';
-          setMessage({ ok: true, text: json.warning ?? 'Photograph saved.' });
+          if (cameraRef.current) cameraRef.current.value = '';
+          setMessage({ ok: true, text: json.warning ?? 'Room photograph uploaded securely.' });
           router.refresh();
         } else {
           fail(json.error ?? 'The photograph could not be uploaded. Try again.');
@@ -103,41 +140,141 @@ export function RoomPhotoUploader({ storeSlug, photos }: { storeSlug: string; ph
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-4 rounded-card border border-line bg-card p-4" aria-describedby="upload-help">
+    <form onSubmit={submit} className="grid gap-4 rounded-card border border-line bg-card p-5 shadow-rest">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Step 1</p>
+          <h2 className="font-display text-xl text-burgundy">Upload Your Room</h2>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 rounded-control border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-cream"
+          >
+            <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
+            Choose file
+          </button>
+          <button
+            type="button"
+            onClick={() => cameraRef.current?.click()}
+            className="inline-flex items-center gap-1.5 rounded-control border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-cream md:hidden"
+          >
+            <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+            Take photo
+          </button>
+        </div>
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
+        className="hidden"
+      />
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
+        className="hidden"
+      />
+
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onClick={() => inputRef.current?.click()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click();
+        }}
+        className={`grid cursor-pointer place-items-center rounded-card border-2 border-dashed p-5 text-center transition ${
+          isDragging ? 'border-burgundy bg-burgundy/5' : 'border-line bg-cream/60 hover:border-gold'
+        }`}
+      >
+        {previewUrl ? (
+          <div className="grid gap-2">
+            <img src={previewUrl} alt="Selected room preview" className="mx-auto max-h-56 rounded-control object-contain shadow-rest" />
+            <p className="text-xs font-medium text-burgundy">
+              {selectedFile?.name} — click or drop another file to change
+            </p>
+          </div>
+        ) : (
+          <div className="grid place-items-center gap-2 py-4">
+            <UploadCloud className="h-8 w-8 text-burgundy" aria-hidden="true" />
+            <p className="text-sm font-medium text-ink">Drag & drop a room photograph here, or click to browse</p>
+            <p className="text-xs text-ink-muted">JPEG, PNG or WebP up to 8 MB · Private to your browser session</p>
+          </div>
+        )}
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="grid gap-1 text-sm font-semibold text-ink">
-          Room photograph
-          <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="text-sm font-normal" />
+        <label className="grid gap-1 text-xs font-semibold text-ink">
+          Room type / label
+          <select
+            value={ROOM_TYPES.includes(label) ? label : 'Custom'}
+            onChange={(e) => setLabel(e.target.value === 'Custom' ? '' : e.target.value)}
+            className="rounded-control border border-line bg-white px-3 py-2 text-sm font-normal"
+          >
+            {ROOM_TYPES.map((rt) => (
+              <option key={rt} value={rt}>{rt}</option>
+            ))}
+            <option value="Custom">Custom label…</option>
+          </select>
         </label>
-        <label className="grid gap-1 text-sm font-semibold text-ink">
-          Name for this room (optional)
-          <input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={80} placeholder="Living room, east wall" className="rounded-control border border-line bg-cream px-3 py-2 text-sm font-normal" />
+        <label className="grid gap-1 text-xs font-semibold text-ink">
+          Room name (optional)
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            maxLength={80}
+            placeholder="e.g. Master bathroom, Living room"
+            className="rounded-control border border-line bg-white px-3 py-2 text-sm font-normal"
+          />
         </label>
         {photos.length > 0 ? (
-          <label className="grid gap-1 text-sm font-semibold text-ink sm:col-span-2">
+          <label className="grid gap-1 text-xs font-semibold text-ink sm:col-span-2">
             Replace an existing photograph (optional)
-            <select value={replaces} onChange={(e) => setReplaces(e.target.value)} className="rounded-control border border-line bg-cream px-3 py-2 text-sm font-normal">
-              <option value="">Keep existing photographs</option>
-              {photos.map((p) => (
-                <option key={p.id} value={p.id}>{p.label || 'Untitled photograph'}</option>
+            <select value={replaces} onChange={(e) => setReplaces(e.target.value)} className="rounded-control border border-line bg-white px-3 py-2 text-sm font-normal">
+              <option value="">Add as a new room photograph</option>
+              {photos.map((p, i) => (
+                <option key={p.id} value={p.id}>{p.label || `Photograph ${i + 1}`}</option>
               ))}
             </select>
           </label>
         ) : null}
       </div>
-      <p id="upload-help" className="text-xs text-ink-muted">
-        JPEG, PNG or WebP. Large photographs are reduced in your browser before upload. You can keep up to six photographs.
-      </p>
+
       {progress !== null ? (
-        <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label="Upload progress" className="h-2 w-full overflow-hidden rounded-full bg-line">
-          <div className="h-full bg-burgundy transition-all" style={{ width: `${progress}%` }} />
+        <div className="grid gap-1">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-cream">
+            <div className="h-full bg-burgundy transition-all" style={{ width: `${progress}%` }} />
+          </div>
+          <p className="text-xs text-ink-muted">Uploading photograph… {progress}%</p>
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={progress !== null} className="rounded-control bg-burgundy px-4 py-2.5 text-sm font-semibold text-cream disabled:opacity-60">
-          {progress !== null ? `Uploading ${progress}%` : replaces ? 'Upload and replace' : 'Upload photograph'}
+
+      {message ? (
+        <p role="status" className={`text-xs font-medium ${message.ok ? 'text-emerald-800' : 'text-danger'}`}>
+          {message.text}
+        </p>
+      ) : null}
+
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={!selectedFile || progress !== null}
+          className="rounded-control bg-burgundy px-5 py-2.5 text-sm font-semibold text-cream transition hover:bg-burgundy-deep disabled:opacity-50"
+        >
+          {progress !== null ? 'Uploading…' : 'Upload room photograph'}
         </button>
-        <p role="status" aria-live="polite" className={`text-sm ${message?.ok === false ? 'text-danger' : 'text-success'}`}>{message?.text ?? ''}</p>
       </div>
     </form>
   );

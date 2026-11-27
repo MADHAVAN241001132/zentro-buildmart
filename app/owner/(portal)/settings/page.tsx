@@ -3,7 +3,8 @@ import { requireOwnerPermission } from '@/lib/services/owner';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { formatINR } from '@/lib/money';
 import { SettingsForm } from './settings-form';
-import { ImageSlot } from '@/components/owner/image-slot';
+import { StoreBrandingManager } from '@/components/admin/store-branding-manager';
+import { updateOwnerBrandingAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,10 +37,19 @@ export default async function SettingsPage() {
         <p><span className="text-ink-muted">Listed prices include GST:</span> {store.prices_include_gst === true ? 'Yes' : 'No'}</p>
         <p className="mt-1 text-xs text-ink-muted">These details are maintained by ZENTRO administration. Invoices and quotations keep the details in force when they are issued.</p>
       </section>
-      <section className="grid gap-4 rounded-card border border-line bg-card p-5">
+      <section className="grid gap-4">
         <h2 className="font-display text-lg text-burgundy">Store branding</h2>
-        <ImageSlot target="logo" targetId={owner.storeId} label="Store logo" currentUrl={(store.logo_url as string | null) ?? null} />
-        <ImageSlot target="banner" targetId={owner.storeId} label="Store banner" currentUrl={(store.banner_url as string | null) ?? null} hint="A wide image works best, at least 1600 by 500 pixels. JPEG, PNG or WebP, up to 5 MB." />
+        <StoreBrandingManager
+          storeId={owner.storeId}
+          storeSlug={owner.storeSlug}
+          currentName={store.name as string}
+          currentLogoUrl={(store.logo_url as string | null) ?? null}
+          currentBannerUrl={(store.banner_url as string | null) ?? null}
+          currentTagline={typeof (s.opening_hours as Record<string, unknown> | null)?.tagline === 'string' ? ((s.opening_hours as Record<string, unknown>).tagline as string) : ''}
+          currentDescription={(store.business_description as string | null) ?? ''}
+          action={updateOwnerBrandingAction}
+          isOwner
+        />
       </section>
       <SettingsForm
         defaults={{

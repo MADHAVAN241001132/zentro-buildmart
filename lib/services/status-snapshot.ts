@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { getStoreEnabledFeatures } from '@/lib/services/entitlements';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 
 /**
@@ -101,9 +102,14 @@ async function countWhere(build: () => PromiseLike<{ count: number | null; error
  * Notification counts for the owner portal. Counts are exact database counts for one store. Estimates
  * are not shown here: each figure is a count of records in a stated status.
  */
-export async function ownerStatusCounts(storeId: string, held: readonly string[]): Promise<OwnerStatusCounts> {
+export async function ownerStatusCounts(
+  storeId: string,
+  held: readonly string[],
+): Promise<OwnerStatusCounts> {
   const admin = createSupabaseAdminClient();
+  const enabledFeatures = await getStoreEnabledFeatures(storeId);
   const has = (key: string) => held.includes(key);
+  const featureOn = (key: string) => enabledFeatures.has(key as never);
   const [incomingOrders, cashPending, onlinePending, newQuotations, refundRequests] = await Promise.all([
     has('order_management')
       ? countWhere(() => admin.from('orders').select('id', { count: 'exact', head: true }).eq('store_id', storeId).eq('order_status', 'PLACED'))
@@ -123,7 +129,7 @@ export async function ownerStatusCounts(storeId: string, held: readonly string[]
             .in('payment_status', ['PENDING', 'PROCESSING']),
         )
       : null,
-    has('quotations')
+    has('quotations') && featureOn('quotations')
       ? countWhere(() => admin.from('quotations').select('id', { count: 'exact', head: true }).eq('store_id', storeId).eq('status', 'REQUESTED'))
       : null,
     has('refund_management')
@@ -131,5 +137,6 @@ export async function ownerStatusCounts(storeId: string, held: readonly string[]
       : null,
   ]);
   const counts = { incomingOrders, cashPending, onlinePending, newQuotations, refundRequests };
-  return { ...counts, fingerprint: fingerprintOf(counts) };
+  const featureList = enabledFeatures ? Array.from(enabledFeatures).sort() : null;
+  return { ...counts, fingerprint: fingerprintOf({ counts, featureList }) };
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isFeatureEnabled } from '@/lib/services/entitlements';
 import { readGuestSession } from '@/lib/services/guest';
 import { getStoreBySlug } from '@/lib/services/storefront';
 import { guestQuotationView } from '@/lib/services/quotations';
@@ -12,7 +13,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sto
   if (!isUuid(quotationId)) return NextResponse.json({ error: 'not found' }, { status: 404 });
   try {
     const store = await getStoreBySlug(storeSlug);
-    if (!store) return NextResponse.json({ error: 'not found' }, { status: 404 });
+    if (!store || !(await isFeatureEnabled(store.id, 'quotations'))) return NextResponse.json({ error: 'not found' }, { status: 404 });
     const session = await readGuestSession(store.id, storeSlug);
     if (!session) return NextResponse.json({ error: 'not found' }, { status: 404 });
     const view = await guestQuotationView(store.id, session.id, quotationId);

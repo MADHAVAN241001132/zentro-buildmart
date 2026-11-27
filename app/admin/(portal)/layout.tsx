@@ -13,6 +13,7 @@ const NAV = [
   { href: '/admin/subscriptions', label: 'Subscriptions' },
   { href: '/admin/payments', label: 'Payments' },
   { href: '/admin/feature-flags', label: 'Feature flags' },
+  { href: '/admin/ai-visualizer', label: 'AI Visualizer' },
   { href: '/admin/qr', label: 'Platform QR' },
   { href: '/admin/analytics', label: 'Analytics' },
   { href: '/admin/support', label: 'Support' },
@@ -40,7 +41,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           ))}
         </nav>
         <form action={adminSignOutAction} className="mt-6">
-          <button type="submit" className="rounded-control px-3 py-2 text-sm text-cream/80 transition hover:bg-white/10">Sign out</button>
+          <button type="submit" suppressHydrationWarning className="rounded-control px-3 py-2 text-sm text-cream/80 transition hover:bg-white/10">Sign out</button>
         </form>
       </aside>
       <div className="min-w-0 px-4 py-6 md:px-8 lg:py-8 xl:px-10">{children}</div>

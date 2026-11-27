@@ -1,12 +1,29 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Undo2,
+  Redo2,
+  Download,
+  Trash2,
+  RefreshCw,
+  Sparkles,
+  Maximize2,
+  Minimize2,
+  ZoomIn,
+  ZoomOut,
+  AlertTriangle,
+  CheckCircle2,
+} from 'lucide-react';
 import { formatINR } from '@/lib/money';
 import {
-  DEFAULT_PLACEMENT, OVERLAY_LIMITS, aspectOfSizeLabel, clampSplit, clampPlacement, movePlacement, resizePlacement,
-  tileBackgroundSize, type Placement,
-} from '@/lib/visualizer/geometry';
+  classifyProduct,
+  defaultLocationsForCategory,
+  detectProductConflicts,
+  isSupportedForVisualization,
+  type RoomAnalysis,
+} from '@/lib/visualizer/product-intelligence';
 import { addVisualizedToCartAction, addVisualizedToProjectAction } from '@/app/store/[storeSlug]/visualizer/actions';
 
 export interface VisualizerProject {
@@ -29,6 +46,10 @@ export interface VisualizerProduct {
   name: string;
   brand: string | null;
   categoryName: string;
+  application?: string | null;
+  material?: string | null;
+  colour?: string | null;
+  finish?: string | null;
   imageUrl: string | null;
   gstRateBps: number;
   variants: VisualizerVariant[];
@@ -40,12 +61,32 @@ export interface VisualizerPhoto {
   label: string;
 }
 
-interface Overlay {
+interface SelectedItem {
   productId: string;
   variantId: string;
   quantity: number;
-  placement: Placement;
+  installationLocation: string;
 }
+
+interface GeneratedVersion {
+  visualizationId: string;
+  generatedUrl: string;
+  originalUrl: string;
+  roomAnalysis: RoomAnalysis | null;
+  modelUsed: string;
+  latencyMs: number;
+  cached: boolean;
+  warnings: string[];
+  itemsSnapshot: SelectedItem[];
+}
+
+const PROCESSING_STAGES = [
+  'Analyzing your room…',
+  'Identifying suitable installation areas…',
+  'Understanding your selected products…',
+  'Generating realistic visualization…',
+  'Preparing your final room preview…',
+];
 
 const MAX_QTY = 999;
 
@@ -54,7 +95,6 @@ function clampQty(value: number, available: number): number {
   return Math.min(cap, Math.max(1, Math.round(value) || 1));
 }
 
-/** Estimate only: subtotal and GST in whole paise, the way the cart computes them. */
 function lineMoney(variant: VisualizerVariant, quantity: number, gstRateBps: number) {
   const subtotal = variant.salePricePaise * quantity;
   const gst = Math.round((subtotal * gstRateBps) / 10_000);
@@ -67,376 +107,760 @@ export function RoomVisualizer({
   products,
   projects,
   submissionId,
+  canUseProjects = true,
+  canUseQuotations = true,
 }: {
   storeSlug: string;
   photos: VisualizerPhoto[];
   products: VisualizerProduct[];
   projects: VisualizerProject[];
   submissionId: string;
+  canUseProjects?: boolean;
+  canUseQuotations?: boolean;
 }) {
   const [photoIndex, setPhotoIndex] = useState(0);
-  const [overlays, setOverlays] = useState<Overlay[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [split, setSplit] = useState(0);
+  const [selected, setSelected] = useState<SelectedItem[]>([]);
+  const [replaceTargetId, setReplaceTargetId] = useState<string | null>(null);
+
+  // Filters
   const [category, setCategory] = useState('All');
-  const frameRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ mode: 'move' | 'resize'; startX: number; startY: number; start: Placement; width: number; height: number } | null>(null);
+  const [brandFilter, setBrandFilter] = useState('All');
+  const [search, setSearch] = useState('');
 
-  const photo = photos[Math.min(photoIndex, photos.length - 1)];
-  const categories = useMemo(() => ['All', ...Array.from(new Set(products.map((p) => p.categoryName))).sort()], [products]);
-  const visible = products.filter((p) => category === 'All' || p.categoryName === category);
-  const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
-  const active = overlays.find((o) => o.productId === activeId) ?? null;
-  const activeProduct = active ? productById.get(active.productId) ?? null : null;
-  const activeVariant = active && activeProduct ? activeProduct.variants.find((v) => v.id === active.variantId) ?? null : null;
+  // Generation state & history
+  const [consentAccepted, setConsentAccepted] = useState(false);
+  const [usePreviewModel, setUsePreviewModel] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [stageIndex, setStageIndex] = useState(0);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [versions, setVersions] = useState<GeneratedVersion[]>([]);
+  const [versionIndex, setVersionIndex] = useState(-1);
 
-  function addProduct(product: VisualizerProduct) {
-    setActiveId(product.id);
-    if (overlays.some((o) => o.productId === product.id)) return;
-    const first = product.variants.find((v) => v.availableUnits > 0) ?? product.variants[0];
-    if (!first) return;
-    setOverlays((list) => [...list, { productId: product.id, variantId: first.id, quantity: 1, placement: { ...DEFAULT_PLACEMENT } }]);
-  }
+  // Viewer controls
+  const [split, setSplit] = useState(50);
+  const [zoom, setZoom] = useState(1);
+  const [fullscreen, setFullscreen] = useState(false);
 
-  function updateActive(change: (o: Overlay) => Overlay) {
-    if (!activeId) return;
-    setOverlays((list) => list.map((o) => (o.productId === activeId ? change(o) : o)));
-  }
+  const photo = photos[Math.min(photoIndex, Math.max(0, photos.length - 1))];
+  const currentVersion = versionIndex >= 0 ? versions[versionIndex] ?? null : null;
 
-  function setPlacement(change: (p: Placement) => Placement) {
-    updateActive((o) => ({ ...o, placement: clampPlacement(change(o.placement)) }));
-  }
+  const categories = useMemo(
+    () => ['All', ...Array.from(new Set(products.map((p) => p.categoryName))).sort()],
+    [products],
+  );
+  const brands = useMemo(
+    () => ['All', ...Array.from(new Set(products.map((p) => p.brand).filter((b): b is string => Boolean(b)))).sort()],
+    [products],
+  );
 
-  function startDrag(event: PointerEvent<HTMLElement>, mode: 'move' | 'resize') {
-    if (!active || !frameRef.current) return;
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    const rect = frameRef.current.getBoundingClientRect();
-    drag.current = { mode, startX: event.clientX, startY: event.clientY, start: active.placement, width: rect.width, height: rect.height };
-  }
+  const visibleProducts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return products.filter((p) => {
+      if (category !== 'All' && p.categoryName !== category) return false;
+      if (brandFilter !== 'All' && p.brand !== brandFilter) return false;
+      if (!q) return true;
+      return `${p.name} ${p.brand ?? ''} ${p.categoryName}`.toLowerCase().includes(q);
+    });
+  }, [products, category, brandFilter, search]);
 
-  function onDragMove(event: PointerEvent<HTMLElement>) {
-    const state = drag.current;
-    if (!state) return;
-    const dx = ((event.clientX - state.startX) / state.width) * 100;
-    const dy = ((event.clientY - state.startY) / state.height) * 100;
-    setPlacement(() => (state.mode === 'move' ? movePlacement(state.start, dx, dy) : resizePlacement(state.start, dx, dy)));
-  }
+  useEffect(() => {
+    if (!isGenerating) {
+      setStageIndex(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setStageIndex((prev) => (prev < PROCESSING_STAGES.length - 1 ? prev + 1 : prev));
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [isGenerating]);
 
-  function endDrag() {
-    drag.current = null;
-  }
+  const conflicts = useMemo(() => {
+    return detectProductConflicts(
+      selected
+        .map((s) => {
+          const prod = products.find((p) => p.id === s.productId);
+          if (!prod) return null;
+          return {
+            productId: prod.id,
+            name: prod.name,
+            category: classifyProduct({ name: prod.name, categoryName: prod.categoryName, application: prod.application }),
+            location: s.installationLocation,
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null),
+    );
+  }, [selected, products]);
 
-  function nudge(keyDelta: { dx?: number; dy?: number; dw?: number; dh?: number }) {
-    setPlacement((p) => {
-      const moved = movePlacement(p, keyDelta.dx ?? 0, keyDelta.dy ?? 0);
-      return resizePlacement(moved, keyDelta.dw ?? 0, keyDelta.dh ?? 0);
+  function addOrReplaceProduct(product: VisualizerProduct) {
+    const firstVariant = product.variants[0];
+    if (!firstVariant) return;
+    const cat = classifyProduct({ name: product.name, categoryName: product.categoryName, application: product.application });
+    if (!isSupportedForVisualization(cat)) return;
+    const defaultLoc = defaultLocationsForCategory(cat)[0] ?? 'Appropriate room location';
+
+    setErrorMsg(null);
+    if (replaceTargetId) {
+      setSelected((prev) =>
+        prev.map((item) =>
+          item.productId === replaceTargetId
+            ? { productId: product.id, variantId: firstVariant.id, quantity: 1, installationLocation: defaultLoc }
+            : item,
+        ),
+      );
+      setReplaceTargetId(null);
+      return;
+    }
+
+    setSelected((prev) => {
+      if (prev.some((s) => s.productId === product.id)) return prev;
+      return [...prev, { productId: product.id, variantId: firstVariant.id, quantity: 1, installationLocation: defaultLoc }];
     });
   }
 
-  function onOverlayKey(event: KeyboardEvent<HTMLElement>) {
-    const step = event.shiftKey ? 5 : 1;
-    const map: Record<string, () => void> = {
-      ArrowLeft: () => nudge({ dx: -step }),
-      ArrowRight: () => nudge({ dx: step }),
-      ArrowUp: () => nudge({ dy: -step }),
-      ArrowDown: () => nudge({ dy: step }),
-    };
-    const handler = map[event.key];
-    if (handler) {
-      event.preventDefault();
-      handler();
+  function removeProduct(productId: string) {
+    setSelected((prev) => prev.filter((s) => s.productId !== productId));
+    if (replaceTargetId === productId) setReplaceTargetId(null);
+  }
+
+  function updateItem(productId: string, patch: Partial<SelectedItem>) {
+    setSelected((prev) => prev.map((s) => (s.productId === productId ? { ...s, ...patch } : s)));
+  }
+
+  async function generateVisualization(forceRegenerate = false, itemsOverride?: SelectedItem[]) {
+    if (!photo) return;
+    const itemsToUse = itemsOverride ?? selected;
+    if (itemsToUse.length === 0) {
+      setErrorMsg('Select at least one product before generating an AI visualization.');
+      return;
+    }
+    if (!consentAccepted) {
+      setErrorMsg('Please confirm AI image processing consent before generating.');
+      return;
+    }
+
+    setErrorMsg(null);
+    setIsGenerating(true);
+    setStageIndex(0);
+
+    try {
+      const res = await fetch(`/api/store/${storeSlug}/visualizer/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourcePhotoId: photo.id,
+          items: itemsToUse.map((i) => ({
+            productId: i.productId,
+            variantId: i.variantId,
+            installationLocation: i.installationLocation,
+          })),
+          usePreviewModel,
+          forceRegenerate,
+          consentAccepted,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setErrorMsg(json.error || 'Could not generate AI visualization.');
+        return;
+      }
+
+      const nextVersion: GeneratedVersion = {
+        visualizationId: json.visualizationId,
+        generatedUrl: json.generatedUrl,
+        originalUrl: json.originalUrl || photo.url,
+        roomAnalysis: json.roomAnalysis ?? null,
+        modelUsed: json.modelUsed,
+        latencyMs: json.latencyMs ?? 0,
+        cached: Boolean(json.cached),
+        warnings: Array.isArray(json.warnings) ? json.warnings : [],
+        itemsSnapshot: itemsToUse,
+      };
+
+      setVersions((prev) => {
+        const sliced = prev.slice(0, versionIndex + 1);
+        const updated = [...sliced, nextVersion];
+        setVersionIndex(updated.length - 1);
+        return updated;
+      });
+      setSplit(50);
+    } catch {
+      setErrorMsg('Network error while contacting the AI visualization service. Please try again.');
+    } finally {
+      setIsGenerating(false);
     }
   }
 
-  const lines = overlays
-    .map((o) => {
-      const product = productById.get(o.productId);
-      const variant = product?.variants.find((v) => v.id === o.variantId);
-      if (!variant || variant.availableUnits <= 0) return null;
-      return { variantId: variant.id, quantity: clampQty(o.quantity, variant.availableUnits) };
-    })
-    .filter((line): line is { variantId: string; quantity: number } => line !== null);
+  async function deleteCurrentVisualization() {
+    if (!currentVersion) return;
+    await fetch(`/api/store/${storeSlug}/visualizer/generate?id=${currentVersion.visualizationId}`, {
+      method: 'DELETE',
+    }).catch(() => null);
+    setVersions((prev) => {
+      const next = prev.filter((_, i) => i !== versionIndex);
+      setVersionIndex(next.length - 1);
+      return next;
+    });
+  }
 
-  const estimate = overlays.reduce(
-    (sum, o) => {
-      const product = productById.get(o.productId);
-      const variant = product?.variants.find((v) => v.id === o.variantId);
-      if (!product || !variant || variant.availableUnits <= 0) return sum;
-      const money = lineMoney(variant, clampQty(o.quantity, variant.availableUnits), product.gstRateBps);
-      return { subtotal: sum.subtotal + money.subtotal, gst: sum.gst + money.gst, total: sum.total + money.total };
-    },
-    { subtotal: 0, gst: 0, total: 0 },
-  );
+  async function downloadVisualization() {
+    if (!currentVersion?.generatedUrl) return;
+    try {
+      const res = await fetch(currentVersion.generatedUrl);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zentro-ai-room-${currentVersion.visualizationId.slice(0, 8)}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      window.open(currentVersion.generatedUrl, '_blank', 'noopener,noreferrer');
+    }
+  }
+
+  const grandTotal = selected.reduce((sum, s) => {
+    const prod = products.find((p) => p.id === s.productId);
+    const variant = prod?.variants.find((v) => v.id === s.variantId);
+    if (!prod || !variant) return sum;
+    return sum + lineMoney(variant, s.quantity, prod.gstRateBps).total;
+  }, 0);
+
+  const linesJson = JSON.stringify(selected.map((s) => ({ variantId: s.variantId, quantity: s.quantity })));
 
   return (
-    <div className="grid gap-6">
-      <p className="rounded-card border border-line bg-card p-4 text-sm text-ink">
-        <strong className="font-semibold text-burgundy">Approximate product preview.</strong> Place a product on your photograph to see how it might look.
-        The size is set by you, not measured from the room, and this is not a photorealistic or AI rendering.
-      </p>
-
-      {photos.length > 1 ? (
-        <div className="flex gap-2 overflow-x-auto" role="list" aria-label="Room photographs">
-          {photos.map((p, i) => (
-            <button
-              key={p.id}
-              type="button"
-              role="listitem"
-              onClick={() => setPhotoIndex(i)}
-              aria-pressed={i === photoIndex}
-              className={`shrink-0 rounded-control border px-3 py-2 text-sm font-semibold ${i === photoIndex ? 'border-burgundy bg-burgundy text-cream' : 'border-line bg-card text-ink'}`}
-            >
-              {p.label || `Photograph ${i + 1}`}
-            </button>
-          ))}
+    <div className="grid gap-8">
+      {/* Room Selector & Viewer */}
+      {photos.length === 0 ? (
+        <div className="rounded-card border border-line bg-card p-6 text-center text-sm text-ink-muted">
+          Upload a room photograph in Step 1 above to start visualizing products in your space.
         </div>
-      ) : null}
-
-      {photo ? (
-        <section aria-label="Preview" className="grid gap-3">
-          <div ref={frameRef} className="relative overflow-hidden rounded-card border border-line bg-card" onPointerMove={onDragMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photo.url} alt={photo.label ? `Room photograph: ${photo.label}` : 'Room photograph'} draggable={false} className="block h-auto w-full select-none" />
-            <div className="absolute inset-0" style={{ clipPath: `inset(0 0 0 ${clampSplit(split)}%)` }}>
-              {overlays.map((o) => {
-                const product = productById.get(o.productId);
-                if (!product) return null;
-                const isActive = o.productId === activeId;
-                const p = o.placement;
-                const background = product.imageUrl ? `url("${product.imageUrl}")` : 'linear-gradient(135deg, #6A0D2A, #C9A45C)';
-                return (
-                  <div
-                    key={o.productId}
-                    role="group"
-                    aria-label={`${product.name} overlay${isActive ? ', selected' : ''}`}
-                    tabIndex={isActive ? 0 : -1}
-                    onPointerDown={isActive ? (e) => startDrag(e, 'move') : undefined}
-                    onKeyDown={isActive ? onOverlayKey : undefined}
-                    onClick={() => setActiveId(o.productId)}
-                    className={`absolute touch-none ${isActive ? 'cursor-move outline outline-2 outline-gold' : 'cursor-pointer'}`}
-                    style={{
-                      left: `${p.x}%`,
-                      top: `${p.y}%`,
-                      width: `${p.width}%`,
-                      height: `${p.height}%`,
-                      transform: `rotate(${p.rotation}deg)`,
-                      opacity: p.opacity,
-                      backgroundImage: background,
-                      backgroundSize: p.repeat ? tileBackgroundSize(p.tilesAcross) : 'cover',
-                      backgroundRepeat: p.repeat ? 'repeat' : 'no-repeat',
-                      backgroundPosition: 'top left',
-                      mixBlendMode: 'multiply',
-                    }}
-                  >
-                    {isActive ? (
-                      <span
-                        role="slider"
-                        tabIndex={0}
-                        aria-label={`Resize ${product.name}`}
-                        aria-valuenow={Math.round(p.width)}
-                        aria-valuemin={OVERLAY_LIMITS.minSize}
-                        aria-valuemax={OVERLAY_LIMITS.maxSize}
-                        onPointerDown={(e) => {
-                          e.stopPropagation();
-                          startDrag(e, 'resize');
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); nudge({ dw: 1 }); }
-                          if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); nudge({ dw: -1 }); }
-                        }}
-                        className="absolute -bottom-2 -right-2 h-5 w-5 touch-none rounded-sm border-2 border-cream bg-burgundy"
-                      />
-                    ) : null}
-                  </div>
-                );
-              })}
+      ) : (
+        <section className="grid gap-4 rounded-card border border-line bg-card p-5 shadow-rest">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">
+                {currentVersion ? 'Step 5 · AI Room Preview' : 'Room Canvas'}
+              </p>
+              <h2 className="font-display text-2xl text-burgundy">
+                {photo?.label || `Room ${photoIndex + 1}`}
+              </h2>
             </div>
-            {overlays.length > 0 && split > 0 ? (
-              <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-gold" style={{ left: `${split}%` }} aria-hidden />
+
+            {photos.length > 1 ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {photos.map((p, idx) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setPhotoIndex(idx)}
+                    className={`rounded-control px-3 py-1.5 text-xs font-semibold transition ${
+                      idx === photoIndex ? 'bg-burgundy text-cream' : 'border border-line bg-white text-ink hover:bg-cream'
+                    }`}
+                  >
+                    {p.label || `Photo ${idx + 1}`}
+                  </button>
+                ))}
+              </div>
             ) : null}
           </div>
 
-          <div className="grid gap-2 text-sm">
-            <label className="flex items-center gap-3 font-semibold text-ink">
-              Compare with original
-              <input type="range" min={0} max={100} value={split} onChange={(e) => setSplit(Number(e.target.value))} className="w-full accent-burgundy" aria-label="Compare with original: left side shows the original photograph" />
-            </label>
-            <p className="text-xs text-ink-muted">Move the slider right to show the original photograph. Drag a product to move it; drag its corner to resize it.</p>
+          {/* Comparison / Preview Stage */}
+          <div
+            className={`relative overflow-hidden rounded-card border border-line bg-black/90 ${
+              fullscreen ? 'fixed inset-4 z-50 flex flex-col justify-center bg-black p-4' : 'w-full'
+            }`}
+          >
+            <div className="relative mx-auto w-full max-w-4xl overflow-hidden rounded-control bg-black/50">
+              {currentVersion ? (
+                <div
+                  className="relative aspect-[16/10] w-full select-none overflow-hidden"
+                  style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
+                >
+                  {/* After (AI Generated) */}
+                  <img
+                    src={currentVersion.generatedUrl}
+                    alt="AI-generated room visualization"
+                    className="h-full w-full object-contain"
+                  />
+                  {/* Before (Original) clipped by slider */}
+                  <div
+                    className="absolute inset-0 overflow-hidden"
+                    style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }}
+                  >
+                    <img
+                      src={currentVersion.originalUrl}
+                      alt="Original room photograph"
+                      className="h-full w-full object-contain"
+                    />
+                  </div>
+                  {/* Slider Divider */}
+                  <div
+                    className="pointer-events-none absolute inset-y-0 w-0.5 bg-gold shadow-lg"
+                    style={{ left: `${split}%` }}
+                  >
+                    <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold px-2 py-1 text-[10px] font-bold text-burgundy-deep shadow">
+                      ↔
+                    </div>
+                  </div>
+                  <span className="absolute left-3 top-3 rounded bg-black/65 px-2 py-0.5 text-[11px] font-semibold text-white">
+                    Original
+                  </span>
+                  <span className="absolute right-3 top-3 rounded bg-burgundy/90 px-2 py-0.5 text-[11px] font-semibold text-cream">
+                    AI Preview
+                  </span>
+                </div>
+              ) : (
+                <div className="relative aspect-[16/10] w-full overflow-hidden">
+                  <img src={photo?.url} alt={photo?.label || 'Original room'} className="h-full w-full object-contain" />
+                  <span className="absolute left-3 top-3 rounded bg-black/65 px-2 py-0.5 text-[11px] font-semibold text-white">
+                    Original Room
+                  </span>
+                </div>
+              )}
+
+              {/* Processing Overlay (Stage 4) */}
+              {isGenerating ? (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-burgundy-deep/85 p-6 text-center text-cream backdrop-blur-sm">
+                  <Sparkles className="h-9 w-9 animate-pulse text-gold" aria-hidden="true" />
+                  <p className="font-display text-xl text-gold">{PROCESSING_STAGES[stageIndex]}</p>
+                  <p className="max-w-md text-xs text-cream/80">
+                    Preserving your room structure, lighting, and perspective while integrating your selected catalogue products.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Viewer Toolbar */}
+            {currentVersion ? (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-control bg-card p-3 text-xs">
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 font-semibold text-ink">
+                    Before / After
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={split}
+                      onChange={(e) => setSplit(Number(e.target.value))}
+                      className="w-28 accent-burgundy"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setZoom((z) => Math.max(1, Number((z - 0.25).toFixed(2))))}
+                    className="rounded border border-line p-1.5 text-ink hover:bg-cream"
+                    aria-label="Zoom out"
+                  >
+                    <ZoomOut className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="font-medium text-ink">{Math.round(zoom * 100)}%</span>
+                  <button
+                    type="button"
+                    onClick={() => setZoom((z) => Math.min(2, Number((z + 0.25).toFixed(2))))}
+                    className="rounded border border-line p-1.5 text-ink hover:bg-cream"
+                    aria-label="Zoom in"
+                  >
+                    <ZoomIn className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={versionIndex <= 0}
+                    onClick={() => setVersionIndex((i) => Math.max(0, i - 1))}
+                    className="inline-flex items-center gap-1 rounded border border-line px-2.5 py-1.5 font-medium text-ink hover:bg-cream disabled:opacity-40"
+                  >
+                    <Undo2 className="h-3.5 w-3.5" /> Undo
+                  </button>
+                  <button
+                    type="button"
+                    disabled={versionIndex >= versions.length - 1}
+                    onClick={() => setVersionIndex((i) => Math.min(versions.length - 1, i + 1))}
+                    className="inline-flex items-center gap-1 rounded border border-line px-2.5 py-1.5 font-medium text-ink hover:bg-cream disabled:opacity-40"
+                  >
+                    <Redo2 className="h-3.5 w-3.5" /> Redo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => generateVisualization(true)}
+                    disabled={isGenerating}
+                    className="inline-flex items-center gap-1 rounded border border-line px-2.5 py-1.5 font-medium text-ink hover:bg-cream disabled:opacity-40"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Regenerate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadVisualization}
+                    className="inline-flex items-center gap-1 rounded border border-line px-2.5 py-1.5 font-medium text-ink hover:bg-cream"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Download
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deleteCurrentVisualization}
+                    className="inline-flex items-center gap-1 rounded border border-danger/30 px-2.5 py-1.5 font-medium text-danger hover:bg-danger/5"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFullscreen((f) => !f)}
+                    className="inline-flex items-center gap-1 rounded border border-line px-2.5 py-1.5 font-medium text-ink hover:bg-cream"
+                  >
+                    {fullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                    {fullscreen ? 'Exit' : 'Fullscreen'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
+
+          {/* Room Analysis & Disclosure */}
+          {currentVersion ? (
+            <div className="grid gap-2 rounded-control border border-line bg-cream/70 p-3 text-xs text-ink-muted">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-800">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {currentVersion.roomAnalysis?.roomType || 'Room'} · {currentVersion.modelUsed}
+                  {currentVersion.cached ? ' (Cached)' : ` · ${(currentVersion.latencyMs / 1000).toFixed(1)}s`}
+                </span>
+                <span>{currentVersion.roomAnalysis?.lightingDirection}</span>
+              </div>
+              {currentVersion.warnings.length > 0 ? (
+                <p className="text-amber-800">{currentVersion.warnings.join(' ')}</p>
+              ) : null}
+              <p className="italic">
+                AI-generated visualization for design reference. Actual product appearance, dimensions and installation results may vary.
+              </p>
+            </div>
+          ) : null}
         </section>
-      ) : (
-        <div className="rounded-card border border-dashed border-line bg-card p-8 text-center text-sm text-ink-muted">Upload a room photograph to start.</div>
       )}
 
-      <section aria-labelledby="catalogue-heading" className="grid gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="catalogue-heading" className="font-display text-xl text-burgundy">Choose products</h2>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by category">
-            {categories.map((c) => (
-              <button key={c} type="button" onClick={() => setCategory(c)} aria-pressed={category === c} className={`rounded-full border px-3 py-1 text-xs font-semibold ${category === c ? 'border-burgundy bg-burgundy text-cream' : 'border-line bg-card text-ink'}`}>{c}</button>
-            ))}
-          </div>
-        </div>
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {visible.map((p) => (
-            <li key={p.id}>
-              <button type="button" onClick={() => addProduct(p)} className={`flex w-full flex-col overflow-hidden rounded-card border text-left ${p.id === activeId ? 'border-burgundy' : 'border-line'} bg-card`}>
-                <span className="block aspect-square w-full bg-gradient-to-br from-burgundy-deep to-burgundy" style={p.imageUrl ? { backgroundImage: `url("${p.imageUrl}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined} aria-hidden />
-                <span className="p-2">
-                  <span className="block text-sm font-semibold text-ink">{p.name}</span>
-                  <span className="block text-xs text-ink-muted">{overlays.some((o) => o.productId === p.id) ? 'On your photograph' : 'Tap to place'}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        {visible.length === 0 ? <p className="text-sm text-ink-muted">No products in this category yet.</p> : null}
-      </section>
-
-      {active && activeProduct && activeVariant ? (
-        <section aria-labelledby="selected-heading" className="grid gap-4 rounded-card border border-line bg-card p-4">
+      {/* Step 2 & 3: Product Selection + Selected Products Panel */}
+      <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+        {/* Store Catalogue */}
+        <section className="grid content-start gap-4 rounded-card border border-line bg-card p-5 shadow-rest">
           <div>
-            <h2 id="selected-heading" className="font-display text-xl text-burgundy">{activeProduct.name}</h2>
-            {activeProduct.brand ? <p className="text-xs uppercase tracking-[0.15em] text-gold">{activeProduct.brand}</p> : null}
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Step 2</p>
+            <h2 className="font-display text-xl text-burgundy">
+              {replaceTargetId ? 'Select a Replacement Product' : 'Choose Your Products'}
+            </h2>
+            {replaceTargetId ? (
+              <div className="mt-1 flex items-center gap-2 text-xs text-burgundy">
+                <span>Click any compatible product below to replace the selected item.</span>
+                <button type="button" onClick={() => setReplaceTargetId(null)} className="underline">
+                  Cancel replace
+                </button>
+              </div>
+            ) : null}
           </div>
 
-          {overlays.length > 1 ? (
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Switch product">
-              {overlays.map((o) => {
-                const name = productById.get(o.productId)?.name ?? 'Product';
+          <div className="grid gap-2 sm:grid-cols-3">
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search products…"
+              className="rounded-control border border-line bg-white px-3 py-2 text-sm"
+            />
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="rounded-control border border-line bg-white px-3 py-2 text-sm"
+            >
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <select
+              value={brandFilter}
+              onChange={(e) => setBrandFilter(e.target.value)}
+              className="rounded-control border border-line bg-white px-3 py-2 text-sm"
+            >
+              {brands.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          </div>
+
+          <ul className="grid max-h-[540px] gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
+            {visibleProducts.map((product) => {
+              const cat = classifyProduct({
+                name: product.name,
+                categoryName: product.categoryName,
+                application: product.application,
+              });
+              const supported = isSupportedForVisualization(cat);
+              const isSelected = selected.some((s) => s.productId === product.id);
+              const firstVariant = product.variants[0];
+
+              return (
+                <li
+                  key={product.id}
+                  className={`flex flex-col justify-between gap-2 rounded-card border p-3 text-sm ${
+                    isSelected ? 'border-burgundy bg-burgundy/5' : 'border-line bg-cream/40'
+                  }`}
+                >
+                  <div className="flex gap-3">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-control border border-line bg-white">
+                      {product.imageUrl ? (
+                        <img src={product.imageUrl} alt={product.name} className="h-full w-full object-contain" />
+                      ) : (
+                        <div className="grid h-full w-full place-items-center text-[10px] text-ink-muted">No photo</div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-ink">{product.name}</p>
+                      <p className="truncate text-xs text-ink-muted">
+                        {[product.brand, product.categoryName].filter(Boolean).join(' · ')}
+                      </p>
+                      {firstVariant ? (
+                        <p className="mt-1 text-xs font-semibold text-burgundy">
+                          {formatINR(firstVariant.salePricePaise)} / {firstVariant.priceUnit}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {!supported ? (
+                    <span className="rounded bg-line/60 px-2 py-1 text-[11px] text-ink-muted">
+                      Direct room preview unavailable for consumables/tools
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isSelected && !replaceTargetId}
+                      onClick={() => addOrReplaceProduct(product)}
+                      className="w-full rounded-control bg-burgundy px-3 py-1.5 text-xs font-semibold text-cream transition hover:bg-burgundy-deep disabled:opacity-50"
+                    >
+                      {replaceTargetId ? 'Use as replacement' : isSelected ? 'Selected' : 'Select for room'}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        {/* Selected Products & Generate AI Controls */}
+        <section className="grid content-start gap-4 rounded-card border border-line bg-card p-5 shadow-rest">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Step 3</p>
+            <h2 className="font-display text-xl text-burgundy">Selected Products ({selected.length})</h2>
+          </div>
+
+          {selected.length === 0 ? (
+            <p className="rounded-control border border-dashed border-line p-4 text-center text-xs text-ink-muted">
+              Select one or more compatible products from the store catalogue to install in your room.
+            </p>
+          ) : (
+            <ul className="grid gap-3">
+              {selected.map((item) => {
+                const product = products.find((p) => p.id === item.productId);
+                if (!product) return null;
+                const variant = product.variants.find((v) => v.id === item.variantId) ?? product.variants[0];
+                const cat = classifyProduct({
+                  name: product.name,
+                  categoryName: product.categoryName,
+                  application: product.application,
+                });
+                const locations = defaultLocationsForCategory(cat);
+
                 return (
-                  <button key={o.productId} type="button" onClick={() => setActiveId(o.productId)} aria-pressed={o.productId === activeId} className={`rounded-control border px-3 py-1.5 text-xs font-semibold ${o.productId === activeId ? 'border-burgundy bg-burgundy text-cream' : 'border-line text-ink'}`}>{name}</button>
+                  <li key={item.productId} className="grid gap-2 rounded-control border border-line bg-cream/60 p-3 text-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt={product.name} className="h-12 w-12 rounded border border-line bg-white object-contain" />
+                        ) : null}
+                        <div>
+                          <p className="font-semibold text-ink">{product.name}</p>
+                          {variant ? (
+                            <p className="text-ink-muted">
+                              {formatINR(lineMoney(variant, item.quantity, product.gstRateBps).total)} (incl. GST)
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setReplaceTargetId(item.productId)}
+                          className="font-semibold text-burgundy underline"
+                        >
+                          Replace
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeProduct(item.productId)}
+                          className="font-semibold text-danger underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <label className="grid gap-1">
+                        <span className="text-[11px] font-medium text-ink-muted">Variant</span>
+                        <select
+                          value={item.variantId}
+                          onChange={(e) => updateItem(item.productId, { variantId: e.target.value })}
+                          className="rounded border border-line bg-white px-2 py-1 text-xs"
+                        >
+                          {product.variants.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.label}{v.sizeLabel ? ` (${v.sizeLabel})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="grid gap-1">
+                        <span className="text-[11px] font-medium text-ink-muted">Installation location</span>
+                        <select
+                          value={locations.includes(item.installationLocation) ? item.installationLocation : locations[0]}
+                          onChange={(e) => updateItem(item.productId, { installationLocation: e.target.value })}
+                          className="rounded border border-line bg-white px-2 py-1 text-xs"
+                        >
+                          {locations.map((loc) => (
+                            <option key={loc} value={loc}>{loc}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+
+                    {variant ? (
+                      <label className="flex items-center justify-between gap-2 pt-1">
+                        <span className="text-[11px] text-ink-muted">Order quantity ({variant.priceUnit})</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={Math.max(1, variant.availableUnits)}
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateItem(item.productId, {
+                              quantity: clampQty(Number(e.target.value), variant.availableUnits),
+                            })
+                          }
+                          className="w-20 rounded border border-line bg-white px-2 py-1 text-right text-xs"
+                        />
+                      </label>
+                    ) : null}
+                  </li>
                 );
               })}
+            </ul>
+          )}
+
+          {conflicts.length > 0 ? (
+            <div className="flex items-start gap-2 rounded-control border border-amber-400 bg-amber-50 p-3 text-xs text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="grid gap-1">
+                {conflicts.map((c) => (
+                  <p key={c.category}>{c.message}</p>
+                ))}
+              </div>
             </div>
           ) : null}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1 text-sm font-semibold text-ink">
-              Variant
-              <select
-                value={active.variantId}
-                onChange={(e) => updateActive((o) => ({ ...o, variantId: e.target.value, quantity: 1 }))}
-                className="rounded-control border border-line bg-cream px-3 py-2 text-sm font-normal"
-              >
-                {activeProduct.variants.map((v) => (
-                  <option key={v.id} value={v.id} disabled={v.availableUnits <= 0}>
-                    {v.label}{v.sizeLabel ? ` · ${v.sizeLabel}` : ''}{v.availableUnits <= 0 ? ' (out of stock)' : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-semibold text-ink">
-              Quantity ({activeVariant.priceUnit})
+          <div className="grid gap-3 border-t border-line pt-3">
+            <label className="flex items-center gap-2 text-xs text-ink">
               <input
-                type="number"
-                min={1}
-                max={Math.max(1, Math.min(MAX_QTY, activeVariant.availableUnits))}
-                value={active.quantity}
-                onChange={(e) => updateActive((o) => ({ ...o, quantity: clampQty(Number(e.target.value), activeVariant.availableUnits) }))}
-                className="rounded-control border border-line bg-cream px-3 py-2 text-sm font-normal"
+                type="checkbox"
+                checked={usePreviewModel}
+                onChange={(e) => setUsePreviewModel(e.target.checked)}
+                className="accent-burgundy"
               />
+              Use fast preview model (lower latency; uncheck for highest architectural fidelity)
             </label>
-          </div>
 
-          <dl className="grid gap-2 text-sm sm:grid-cols-3">
-            <div><dt className="text-ink-muted">Unit price</dt><dd className="font-semibold text-ink">{formatINR(activeVariant.salePricePaise)} / {activeVariant.priceUnit}</dd></div>
-            <div><dt className="text-ink-muted">Availability</dt><dd className={`font-semibold ${activeVariant.availableUnits > 0 ? 'text-success' : 'text-danger'}`}>{activeVariant.availableUnits > 0 ? `${activeVariant.availableUnits} available` : 'Out of stock'}</dd></div>
-            <div><dt className="text-ink-muted">Estimate with GST</dt><dd className="font-semibold text-ink">{formatINR(lineMoney(activeVariant, clampQty(active.quantity, activeVariant.availableUnits), activeProduct.gstRateBps).total)}</dd></div>
-          </dl>
+            <label className="flex items-start gap-2 rounded-control border border-line bg-cream/60 p-2.5 text-xs text-ink">
+              <input
+                type="checkbox"
+                checked={consentAccepted}
+                onChange={(e) => setConsentAccepted(e.target.checked)}
+                className="mt-0.5 accent-burgundy"
+              />
+              <span>
+                I consent to processing my room photograph with AI (OpenAI) solely to generate this room preview.
+              </span>
+            </label>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1 text-sm text-ink">Opacity
-              <input type="range" min={Math.round(OVERLAY_LIMITS.minOpacity * 100)} max={100} value={Math.round(active.placement.opacity * 100)} onChange={(e) => setPlacement((p) => ({ ...p, opacity: Number(e.target.value) / 100 }))} className="accent-burgundy" />
-            </label>
-            <label className="grid gap-1 text-sm text-ink">Rotation ({Math.round(active.placement.rotation)}°)
-              <input type="range" min={-180} max={180} value={Math.round(active.placement.rotation)} onChange={(e) => setPlacement((p) => ({ ...p, rotation: Number(e.target.value) }))} className="accent-burgundy" />
-            </label>
-            <label className="grid gap-1 text-sm text-ink">Width ({Math.round(active.placement.width)}%)
-              <input type="range" min={OVERLAY_LIMITS.minSize} max={OVERLAY_LIMITS.maxSize} value={Math.round(active.placement.width)} onChange={(e) => setPlacement((p) => ({ ...p, width: Number(e.target.value) }))} className="accent-burgundy" />
-            </label>
-            <label className="grid gap-1 text-sm text-ink">Height ({Math.round(active.placement.height)}%)
-              <input type="range" min={OVERLAY_LIMITS.minSize} max={OVERLAY_LIMITS.maxSize} value={Math.round(active.placement.height)} onChange={(e) => setPlacement((p) => ({ ...p, height: Number(e.target.value) }))} className="accent-burgundy" />
-            </label>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <label className="flex items-center gap-2 font-semibold text-ink">
-              <input type="checkbox" checked={active.placement.repeat} onChange={(e) => setPlacement((p) => ({ ...p, repeat: e.target.checked }))} />
-              Repeat tiles across the area
-            </label>
-            {active.placement.repeat ? (
-              <label className="flex items-center gap-2 text-ink">
-                Tiles across
-                <input type="number" min={OVERLAY_LIMITS.minTilesAcross} max={OVERLAY_LIMITS.maxTilesAcross} value={active.placement.tilesAcross} onChange={(e) => setPlacement((p) => ({ ...p, tilesAcross: Number(e.target.value) }))} className="w-20 rounded-control border border-line bg-cream px-2 py-1" />
-              </label>
+            {errorMsg ? (
+              <p role="alert" className="rounded-control border border-danger bg-danger/10 p-3 text-xs font-medium text-danger">
+                {errorMsg}
+              </p>
             ) : null}
-            <button type="button" onClick={() => { const aspect = aspectOfSizeLabel(activeVariant.sizeLabel); setPlacement((p) => resizePlacement(p, 0, 0, aspect)); }} className="rounded-control border border-line px-3 py-1.5 font-semibold text-burgundy">Match tile proportions</button>
-            <button type="button" onClick={() => setPlacement(() => ({ ...DEFAULT_PLACEMENT }))} className="rounded-control border border-line px-3 py-1.5 font-semibold text-burgundy">Reset placement</button>
-            <button type="button" onClick={() => { setOverlays((list) => list.filter((o) => o.productId !== activeId)); setActiveId(null); }} className="rounded-control border border-danger px-3 py-1.5 font-semibold text-danger">Remove from photograph</button>
-          </div>
 
-          <p className="text-xs text-ink-muted">
-            Want to know how many boxes you need? <Link href={`/store/${storeSlug}/tools/tile-calculator?price=${(activeVariant.salePricePaise / 100).toFixed(2)}`} className="font-semibold text-burgundy underline">Open the tile calculator</Link>.
-          </p>
-        </section>
-      ) : null}
-
-      {products.length === 0 ? <p className="text-sm text-ink-muted">No products are available to place yet.</p> : null}
-
-      <section aria-labelledby="cart-heading" className="grid gap-3 rounded-card border border-line bg-card p-4">
-        <h2 id="cart-heading" className="font-display text-xl text-burgundy">Add to cart</h2>
-        <p className="text-sm text-ink-muted">
-          {overlays.length === 0 ? 'Place a product on your photograph first.' : `Estimate for ${overlays.length} ${overlays.length === 1 ? 'product' : 'products'}: ${formatINR(estimate.subtotal)} plus GST ${formatINR(estimate.gst)} = ${formatINR(estimate.total)}. Cart prices and stock are checked again when you add.`}
-        </p>
-        <form action={addVisualizedToCartAction} className="flex flex-wrap items-center gap-3">
-          <input type="hidden" name="storeSlug" value={storeSlug} />
-          <input type="hidden" name="submissionId" value={submissionId} />
-          <input type="hidden" name="lines" value={JSON.stringify(lines)} />
-          <button type="submit" disabled={lines.length === 0} className="rounded-control bg-burgundy px-4 py-2.5 text-sm font-semibold text-cream disabled:opacity-50">
-            Add visualized products to cart
-          </button>
-        </form>
-
-        <h3 className="mt-2 font-display text-lg text-burgundy">Add to Construction Project</h3>
-        <p className="text-sm text-ink-muted">
-          Keeps each size and quantity you placed. Products are added to the room you choose and can be priced later in the planner.
-        </p>
-        <form action={addVisualizedToProjectAction} className="grid gap-3 sm:grid-cols-2">
-          <input type="hidden" name="storeSlug" value={storeSlug} />
-          <input type="hidden" name="submissionId" value={submissionId} />
-          <input type="hidden" name="lines" value={JSON.stringify(lines)} />
-          <label className="grid gap-1 text-sm font-semibold text-ink">
-            Project or room
-            <select name="target" defaultValue={projects.length === 0 ? 'new' : ''} className="rounded-control border border-line bg-cream px-3 py-2 font-normal">
-              {projects.length === 0 ? null : <option value="" disabled>Choose a project</option>}
-              {projects.map((project) => (
-                <optgroup key={project.id} label={project.name}>
-                  <option value={project.id}>{project.name} (whole project)</option>
-                  {project.rooms.map((room) => (
-                    <option key={room.id} value={`${project.id}|${room.id}`}>{room.name} ({room.roomLabel})</option>
-                  ))}
-                </optgroup>
-              ))}
-              <option value="new">New project</option>
-            </select>
-          </label>
-          <label className="grid gap-1 text-sm font-semibold text-ink">
-            New project name
-            <input name="newProjectName" maxLength={120} className="rounded-control border border-line bg-cream px-3 py-2 font-normal" placeholder="Only for a new project" />
-          </label>
-          <label className="grid gap-1 text-sm font-semibold text-ink">
-            New room name
-            <input name="newRoomName" maxLength={80} className="rounded-control border border-line bg-cream px-3 py-2 font-normal" placeholder="Creates a custom room when no room is chosen" />
-          </label>
-          <div className="flex items-end">
-            <button type="submit" disabled={lines.length === 0} className="rounded-control border border-burgundy px-4 py-2.5 text-sm font-semibold text-burgundy disabled:opacity-50">
-              Add to Construction Project
+            <button
+              type="button"
+              disabled={!photo || selected.length === 0 || isGenerating}
+              onClick={() => generateVisualization(false)}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-control bg-burgundy px-5 py-3 text-sm font-semibold text-cream shadow-rest transition hover:bg-burgundy-deep disabled:opacity-50"
+            >
+              <Sparkles className="h-4 w-4 text-gold" aria-hidden="true" />
+              {isGenerating ? PROCESSING_STAGES[stageIndex] : 'Visualize My Room with AI'}
             </button>
           </div>
-        </form>
-      </section>
+
+          {/* Commerce actions (Cart & Quotations / Projects) */}
+          {selected.length > 0 ? (
+            <div className="grid gap-2 border-t border-line pt-3 text-xs">
+              <div className="flex items-center justify-between font-semibold text-ink">
+                <span>Estimated product total</span>
+                <span className="text-base text-burgundy">{formatINR(grandTotal)}</span>
+              </div>
+
+              <form action={addVisualizedToCartAction}>
+                <input type="hidden" name="storeSlug" value={storeSlug} />
+                <input type="hidden" name="submissionId" value={submissionId} />
+                <input type="hidden" name="lines" value={linesJson} />
+                <button
+                  type="submit"
+                  className="w-full rounded-control border border-burgundy bg-white px-4 py-2 font-semibold text-burgundy hover:bg-burgundy/5"
+                >
+                  Add selected products to cart
+                </button>
+              </form>
+
+              {canUseProjects && projects.length > 0 ? (
+                <form action={addVisualizedToProjectAction} className="grid gap-2 pt-1">
+                  <input type="hidden" name="storeSlug" value={storeSlug} />
+                  <input type="hidden" name="submissionId" value={submissionId} />
+                  <input type="hidden" name="lines" value={linesJson} />
+                  <select name="target" className="rounded border border-line bg-white px-2 py-1.5 text-xs">
+                    {projects.flatMap((proj) =>
+                      proj.rooms.map((r) => (
+                        <option key={r.id} value={`existing:${proj.id}:${r.id}`}>
+                          {proj.name} → {r.name}
+                        </option>
+                      )),
+                    )}
+                  </select>
+                  <button
+                    type="submit"
+                    className="w-full rounded-control border border-line bg-cream px-4 py-2 font-semibold text-ink hover:bg-cream/80"
+                  >
+                    Save to house project
+                  </button>
+                </form>
+              ) : null}
+
+              {canUseQuotations ? (
+                <Link
+                  href={`/store/${storeSlug}/cart`}
+                  className="text-center font-semibold text-burgundy underline"
+                >
+                  Proceed to cart or request quotation →
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+      </div>
     </div>
   );
 }

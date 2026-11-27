@@ -5,7 +5,8 @@ import { ConfirmSubmit } from '@/components/owner/confirm-submit';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { buttonClass } from '@/components/ui/button';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { updateStoreAction, setStoreStatusAction, ensureShowroomQrAction } from '../actions';
+import { updateStoreAction, updateStoreBrandingAction, setStoreStatusAction, ensureShowroomQrAction } from '../actions';
+import { StoreBrandingManager } from '@/components/admin/store-branding-manager';
 import { StoreForm } from '../store-form';
 
 export const dynamic = 'force-dynamic';
@@ -25,14 +26,17 @@ export default async function StoreDetailPage({
   const { data: store } = await supabase.from('stores').select('*').eq('id', id).maybeSingle();
   if (!store) notFound();
 
-  const [{ data: owners }, { data: subs }, { data: qr }] = await Promise.all([
+  const [{ data: owners }, { data: subs }, { data: qr }, { data: settings }] = await Promise.all([
     supabase.from('store_owners').select('profile_id, role, is_active, profiles(full_name, phone)').eq('store_id', id),
     supabase.from('subscriptions').select('id, status, period_end, subscription_plans(name)').eq('store_id', id).order('created_at', { ascending: false }).limit(3),
     supabase.from('qr_codes').select('id, public_url, is_active').eq('store_id', id).eq('target_type', 'showroom'),
+    supabase.from('store_settings').select('opening_hours').eq('store_id', id).maybeSingle(),
   ]);
 
   const status = store.status as string;
   const hasQr = (qr ?? []).some((q) => q.is_active);
+  const openingHours = (settings?.opening_hours as Record<string, unknown> | null) ?? {};
+  const tagline = typeof openingHours.tagline === 'string' ? openingHours.tagline : '';
 
   return (
     <div className="grid gap-8">
@@ -81,6 +85,20 @@ export default async function StoreDetailPage({
             </form>
           ) : null}
         </div>
+      </section>
+
+      <section className="grid gap-3">
+        <h2 className="font-display text-2xl text-burgundy">Store branding</h2>
+        <StoreBrandingManager
+          storeId={id}
+          storeSlug={store.slug as string}
+          currentName={store.name as string}
+          currentLogoUrl={(store.logo_url as string | null) ?? null}
+          currentBannerUrl={(store.banner_url as string | null) ?? null}
+          currentTagline={tagline}
+          currentDescription={(store.business_description as string | null) ?? ''}
+          action={updateStoreBrandingAction.bind(null, id)}
+        />
       </section>
 
       <section className="grid gap-3">

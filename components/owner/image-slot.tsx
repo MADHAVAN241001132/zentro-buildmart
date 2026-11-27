@@ -9,6 +9,7 @@ const initial: MediaActionState = { ok: true, message: '' };
 export function ImageSlot({ target, targetId, label, currentUrl, hint }: { target: 'category' | 'brand' | 'logo' | 'banner'; targetId: string; label: string; currentUrl: string | null; hint?: string }) {
   const [state, formAction, pending] = useActionState(uploadMediaAction, initial);
   const [preview, setPreview] = useState<string | null>(null);
+  const [sizeError, setSizeError] = useState<string | null>(null);
 
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
@@ -34,16 +35,26 @@ export function ImageSlot({ target, targetId, label, currentUrl, hint }: { targe
             accept="image/jpeg,image/png,image/webp"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              setPreview(file ? URL.createObjectURL(file) : null);
+              if (file && file.size > 5 * 1024 * 1024) {
+                setSizeError('The file is larger than 5 MB.');
+                setPreview(null);
+              } else {
+                setSizeError(null);
+                setPreview(file ? URL.createObjectURL(file) : null);
+              }
             }}
             className="text-xs"
           />
           <p className="text-[11px] text-ink-muted">{hint ?? 'JPEG, PNG or WebP, up to 5 MB.'}</p>
           <div className="flex items-center gap-2">
-            <button type="submit" disabled={pending} className="rounded-control bg-burgundy px-3 py-1.5 text-xs text-cream disabled:opacity-50">
+            <button type="submit" disabled={pending || Boolean(sizeError)} className="rounded-control bg-burgundy px-3 py-1.5 text-xs text-cream disabled:opacity-50">
               {pending ? 'Saving...' : currentUrl ? 'Replace image' : 'Upload image'}
             </button>
-            {state.message ? <span className={`text-xs ${state.ok ? 'text-emerald-800' : 'text-red-700'}`}>{state.message}</span> : null}
+            {sizeError ? (
+              <span className="text-xs text-red-700">{sizeError}</span>
+            ) : state.message ? (
+              <span className={`text-xs ${state.ok ? 'text-emerald-800' : 'text-red-700'}`}>{state.message}</span>
+            ) : null}
           </div>
         </form>
       </div>

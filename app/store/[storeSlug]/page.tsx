@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ProductCard } from '@/components/guest/product-card';
@@ -22,10 +23,11 @@ export default async function StoreHome({ params }: { params: Promise<{ storeSlu
 
   return (
     <div className="flex flex-col gap-12">
-      <section className="relative grid gap-6 overflow-hidden rounded-card bg-gradient-to-br from-burgundy-deep via-burgundy to-burgundy-deep px-6 py-10 text-cream shadow-hover md:grid-cols-[1.4fr_1fr] md:items-center md:px-10 md:py-14">
+      <section className="relative grid gap-6 overflow-hidden rounded-card bg-gradient-to-br from-burgundy-deep via-burgundy to-burgundy-deep px-6 py-8 text-cream shadow-hover md:grid-cols-[1.15fr_1fr] md:items-center md:gap-8 md:px-10 md:py-12">
         <div className="grid gap-4">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gold">{t('home.eyebrow')}</p>
           <h1 className="font-display text-3xl leading-tight [overflow-wrap:anywhere] sm:text-4xl lg:text-5xl">{t('home.welcome', { name: store.name })}</h1>
+          {store.tagline ? <p className="text-base font-medium tracking-wide text-gold">{store.tagline}</p> : null}
           {store.businessDescription ? <p className="max-w-2xl text-cream/85">{store.businessDescription}</p> : null}
           <p className="max-w-xl text-cream/80">{t('home.intro')}</p>
           <div className="flex flex-wrap gap-3 pt-2">
@@ -37,21 +39,57 @@ export default async function StoreHome({ params }: { params: Promise<{ storeSlu
             </Link>
           </div>
         </div>
-        {/* Decorative panel. It is a styled tile, not a product photograph. */}
-        <div aria-hidden="true" className="hidden aspect-[4/3] rounded-card border border-gold/40 bg-burgundy-deep/60 p-6 md:flex md:flex-col md:justify-between">
-          <span className="font-display text-5xl text-gold">Z</span>
-          <div className="grid grid-cols-3 gap-2">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <span key={i} className={`aspect-square rounded-control ${i % 2 === 0 ? 'bg-gold/30' : 'bg-cream/15'}`} />
-            ))}
-          </div>
+        <div className="w-full overflow-hidden rounded-card border border-gold/40 bg-burgundy-deep/40 shadow-rest">
+          {store.bannerUrl ? (
+            <RemoteImage
+              src={store.bannerUrl}
+              alt={`${store.name} Showroom Banner`}
+              wrapperClassName="aspect-[16/5] w-full bg-burgundy-deep/40"
+              imgClassName="h-full w-full object-contain"
+              fallback={
+                <div className="flex aspect-[16/5] w-full flex-col items-center justify-center p-6 text-center text-cream">
+                  <p className="font-display text-2xl text-gold">{store.name}</p>
+                  <p className="text-xs text-cream/80 mt-1 uppercase tracking-wider">A Digital Showroom Powered by ZENTRO BuildMart</p>
+                </div>
+              }
+            />
+          ) : store.slug === 'zentro-buildmart-showroom' ? (
+            <Image
+              src="/images/showroom-hero.webp"
+              alt="ZENTRO BuildMart Digital Showroom showcasing Kitchen Accessories, Bathroom Fittings, Tile Visualizer, Tile Calculator, Product Compare, and Project Gallery"
+              width={1024}
+              height={682}
+              priority
+              sizes="(max-width: 767px) 100vw, (max-width: 1279px) 46vw, 560px"
+              className="h-auto w-full object-contain"
+            />
+          ) : (
+            <div className="flex aspect-[16/9] w-full flex-col items-center justify-center p-8 text-center text-cream bg-gradient-to-br from-burgundy via-burgundy-deep to-black/60">
+              {store.logoUrl ? (
+                <div className="mb-3 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-white/95 p-2 shadow-rest">
+                  <img src={store.logoUrl} alt={`${store.name} Logo`} className="h-full w-full object-contain" />
+                </div>
+              ) : (
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gold/20 font-display text-2xl text-gold mb-3">
+                  {store.name.trim().charAt(0).toUpperCase() || 'S'}
+                </span>
+              )}
+              <p className="font-display text-2xl text-gold">{store.name}</p>
+              <p className="text-xs text-cream/90 mt-1.5 max-w-sm">Discover our collection of products and explore a convenient digital showroom experience.</p>
+              <div className="mt-4 pt-3 border-t border-cream/15 text-[11px] text-cream/70">
+                <span className="font-semibold text-gold">Powered by ZENTRO BuildMart</span>
+                <span className="mx-2">&bull;</span>
+                <span>Connect. Create. Conquer.</span>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
       <section aria-labelledby="categories-heading" className="grid gap-5">
         <h2 id="categories-heading" className="font-display text-2xl text-burgundy">{t('home.categories')}</h2>
         {categories.length === 0 ? (
-          <EmptyState title={t('home.noCategories')} body={t('home.noCategoriesBody')} />
+          <EmptyState title="Catalogue being prepared" body="Our product collection is being prepared. Visit us again soon to explore our latest products." />
         ) : (
           <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {categories.map((category) => (
@@ -119,7 +157,7 @@ export default async function StoreHome({ params }: { params: Promise<{ storeSlu
           <Link href={`/store/${storeSlug}/category/all`} className="text-sm font-semibold text-burgundy">{t('home.viewAll')}</Link>
         </div>
         {featured.items.length === 0 ? (
-          <EmptyState title={t('home.noProducts')} body={t('home.noProductsBody')} />
+          <EmptyState title="No products yet" body="Our product collection is being prepared. Visit us again soon to explore our latest products." />
         ) : (
           <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {featured.items.map((product) => (

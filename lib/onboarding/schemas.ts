@@ -11,7 +11,14 @@ const phone = z
   .or(z.literal(''))
   .transform((v) => v || null);
 const email = z.string().trim().toLowerCase().email('Enter a valid email').or(z.literal('')).transform((v) => v || null);
-const optionalText = (max: number) => z.string().trim().max(max).transform((v) => v || null);
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .or(z.literal(''))
+    .transform((v) => v || null);
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use the date format YYYY-MM-DD');
 
 export const infoSchema = z.object({
@@ -28,8 +35,10 @@ export const infoSchema = z.object({
   email,
   addressLine: optionalText(200),
   city: optionalText(80),
+  district: optionalText(80),
   state: optionalText(80),
   pincode: z.string().trim().regex(/^[0-9]{6}$/, 'Pincode must be 6 digits').or(z.literal('')).transform((v) => v || null),
+  operatingHours: optionalText(120),
   description: optionalText(500),
   brandColour: z.string().trim().regex(/^#[0-9A-Fa-f]{6}$/, 'Use a hex colour such as #6A0D2A'),
 });

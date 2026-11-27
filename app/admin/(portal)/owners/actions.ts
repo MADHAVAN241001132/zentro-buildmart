@@ -35,6 +35,7 @@ export async function createOwnerAction(_prev: OwnerFormState, fd: FormData): Pr
 
   const result = await createOwnerAccount({
     actorId: admin.userId,
+    actorType: 'super_admin',
     storeId: d.storeId,
     fullName: d.fullName,
     email: d.email,

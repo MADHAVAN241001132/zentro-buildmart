@@ -1,5 +1,6 @@
 import { PageHeader } from '@/components/owner/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { isFeatureEnabled } from '@/lib/services/entitlements';
 import { requireOwnerPermission } from '@/lib/services/owner';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { appUrl } from '@/lib/env';
@@ -10,9 +11,10 @@ export const dynamic = 'force-dynamic';
 export default async function QrPage() {
   const owner = await requireOwnerPermission('qr_management');
   const supabase = await createSupabaseServerClient();
-  const [{ data: categories }, { data: products }] = await Promise.all([
+  const [{ data: categories }, { data: products }, showAnalytics] = await Promise.all([
     supabase.from('categories').select('slug, name').eq('store_id', owner.storeId).eq('is_active', true).order('sort_order'),
     supabase.from('products').select('slug, name').eq('store_id', owner.storeId).eq('status', 'active').eq('visibility', 'public').order('name').limit(60),
+    isFeatureEnabled(owner.storeId, 'qr_scan_analytics'),
   ]);
   const base = `/api/store/${owner.storeSlug}/qr`;
   const showroomUrl = `${appUrl().replace(/\/$/, '')}/store/${owner.storeSlug}`;
@@ -67,11 +69,13 @@ export default async function QrPage() {
         <p className="text-xs text-ink-muted">Shows the first 60 active public products. Use the storefront URL pattern for others.</p>
       </section>
 
-      <section className="grid gap-2 rounded-card border border-line bg-card p-6 text-sm">
-        <h2 className="font-display text-xl text-burgundy">Scan analytics</h2>
-        <p className="text-ink-muted">Tracked entries and attributed orders are reported on the QR analytics page. Codes printed before tracking was introduced still work, but their visits are not counted.</p>
-        <a href="/owner/qr/analytics" className="w-fit text-burgundy underline">Open QR analytics</a>
-      </section>
+      {showAnalytics ? (
+        <section className="grid gap-2 rounded-card border border-line bg-card p-6 text-sm">
+          <h2 className="font-display text-xl text-burgundy">Scan analytics</h2>
+          <p className="text-ink-muted">Tracked entries and attributed orders are reported on the QR analytics page. Codes printed before tracking was introduced still work, but their visits are not counted.</p>
+          <a href="/owner/qr/analytics" className="w-fit text-burgundy underline">Open QR analytics</a>
+        </section>
+      ) : null}
     </div>
   );
 }

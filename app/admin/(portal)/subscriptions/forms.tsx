@@ -10,14 +10,18 @@ import { assignSubscriptionAction, createPlanAction, grantAllowanceAction, renew
 const INITIAL = { ok: false } as SubscriptionState;
 
 export const PLAN_FEATURE_LABELS: Record<(typeof PREMIUM_FEATURE_KEYS)[number], string> = {
+  online_payments: 'Online payments',
   pos_billing: 'POS billing',
   quotations: 'Quotations',
-  room_visualiser: 'Room visualiser',
-  house_project_planner: 'House project planner',
-  bulk_imports: 'Bulk imports',
-  qr_scan_analytics: 'QR scan analytics',
+  credit_ledger: 'Credit ledger',
+  delivery: 'Delivery management',
+  coupons: 'Coupons',
   tile_batches: 'Tile batches',
   purchase_orders: 'Purchase orders',
+  room_visualiser: 'Room visualiser',
+  qr_scan_analytics: 'QR scan analytics',
+  house_project_planner: 'House project planner',
+  bulk_imports: 'Bulk imports',
   reports: 'Reports and exports',
 };
 

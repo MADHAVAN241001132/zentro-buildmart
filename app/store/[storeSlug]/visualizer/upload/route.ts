@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { isFeatureEnabled } from '@/lib/services/entitlements';
 import { getStoreBySlug } from '@/lib/services/storefront';
 import { ensureGuestSession } from '@/lib/services/guest';
 import { addRoomPhoto, removeRoomPhoto } from '@/lib/services/guest-photos';
@@ -30,6 +31,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ sto
 
   const store = await getStoreBySlug(storeSlug);
   if (!store) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+  if (!(await isFeatureEnabled(store.id, 'room_visualiser'))) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404 });
+  }
 
   let form: FormData;
   try {

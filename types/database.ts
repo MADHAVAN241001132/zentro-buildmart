@@ -1444,6 +1444,108 @@ export interface Database {
           },
         ];
       };
+      ai_visualizer_store_settings: {
+        Row: {
+          store_id: string;
+          monthly_limit: number;
+          daily_limit: number;
+          guest_session_daily_limit: number;
+          default_model: string;
+          preview_model: string;
+          image_quality: string;
+          updated_at: string;
+        };
+        Insert: {
+          store_id: string;
+          monthly_limit?: number;
+          daily_limit?: number;
+          guest_session_daily_limit?: number;
+          default_model?: string;
+          preview_model?: string;
+          image_quality?: string;
+          updated_at?: string;
+        };
+        Update: {
+          store_id?: string;
+          monthly_limit?: number;
+          daily_limit?: number;
+          guest_session_daily_limit?: number;
+          default_model?: string;
+          preview_model?: string;
+          image_quality?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      ai_visualizer_sessions: {
+        Row: {
+          id: string;
+          store_id: string;
+          guest_session_id: string;
+          source_photo_id: string | null;
+          config_hash: string;
+          room_analysis: Json | null;
+          selected_products: Json;
+          placement_plan: Json;
+          prompt_used: string | null;
+          model_used: string;
+          image_quality: string;
+          status: string;
+          generated_bucket: string;
+          generated_path: string | null;
+          estimated_cost_usd: number;
+          latency_ms: number | null;
+          error_message: string | null;
+          history_version: number;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          store_id: string;
+          guest_session_id: string;
+          source_photo_id?: string | null;
+          config_hash: string;
+          room_analysis?: Json | null;
+          selected_products?: Json;
+          placement_plan?: Json;
+          prompt_used?: string | null;
+          model_used: string;
+          image_quality?: string;
+          status?: string;
+          generated_bucket?: string;
+          generated_path?: string | null;
+          estimated_cost_usd?: number;
+          latency_ms?: number | null;
+          error_message?: string | null;
+          history_version?: number;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          store_id?: string;
+          guest_session_id?: string;
+          source_photo_id?: string | null;
+          config_hash?: string;
+          room_analysis?: Json | null;
+          selected_products?: Json;
+          placement_plan?: Json;
+          prompt_used?: string | null;
+          model_used?: string;
+          image_quality?: string;
+          status?: string;
+          generated_bucket?: string;
+          generated_path?: string | null;
+          estimated_cost_usd?: number;
+          latency_ms?: number | null;
+          error_message?: string | null;
+          history_version?: number;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       guest_room_photos: {
         Row: {
           id: string;

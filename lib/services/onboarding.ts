@@ -5,6 +5,8 @@ import { activationIssues, subscriptionCovers, type ActivationState } from '@/li
 import type { GstRegistrationValue as GstRegistration } from '@/lib/onboarding/legal-rules';
 import { targetUrl } from '@/lib/qr';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Store onboarding for the Admin wizard. Each save writes a draft to store_onboardings first, so progress
@@ -110,8 +112,10 @@ export async function saveStoreInfo(
     email: string | null;
     addressLine: string | null;
     city: string | null;
+    district?: string | null;
     state: string | null;
     pincode: string | null;
+    operatingHours?: string | null;
     description: string | null;
     brandColour: string;
   },
@@ -182,13 +186,46 @@ export async function saveOwner(
   // The provisioning workflow links the owner to this onboarding record in the database (zb_prov_link_onboarding).
   const created = await createOwnerAccount({
     actorId: adminId,
+    actorType: 'super_admin',
     storeId: onb.storeId,
     password,
     onboardingId: onb.id,
     requestKey: `onboarding:${onb.id}:owner`,
     ...details,
   });
-  if (!created.ok) return fail(created.message);
+  if (!created.ok) {
+    if (created.emailTaken) {
+      const adminSb = createSupabaseAdminClient();
+      const { data: userList } = await adminSb.auth.admin.listUsers();
+      const existingUser = userList?.users.find((u) => u.email?.toLowerCase() === input.email.trim().toLowerCase());
+
+      if (existingUser) {
+        // Link this existing profile to the store as owner
+        await adminSb.from('store_owners').upsert(
+          {
+            store_id: onb.storeId,
+            profile_id: existingUser.id,
+            role: input.role,
+            is_active: true,
+          },
+          { onConflict: 'store_id,profile_id' },
+        );
+
+        // Link onboarding to this profile
+        await adminSb
+          .from('store_onboardings')
+          .update({
+            owner_profile_id: existingUser.id,
+            step_data: { ...onb.stepData, owner: details },
+            current_step: advance(onb.currentStep, 3),
+          })
+          .eq('id', onb.id);
+
+        return done('Existing owner account linked to this store.');
+      }
+    }
+    return fail(created.message);
+  }
 
   const { error } = await (await createSupabaseServerClient())
     .from('store_onboardings')
@@ -290,8 +327,17 @@ export async function saveFeatures(onb: OnboardingDraft, features: Record<string
   if (!storeId) return fail('Save store information (step 1) first.');
   const rows = Object.entries(features).map(([feature_key, enabled]) => ({ store_id: storeId, feature_key, enabled, updated_at: new Date().toISOString() }));
   if (rows.length > 0) {
-    const { error } = await (await createSupabaseServerClient()).from('feature_flags').upsert(rows, { onConflict: 'store_id,feature_key' });
+    const admin = createSupabaseAdminClient();
+    const { error } = await admin.from('feature_flags').upsert(rows, { onConflict: 'store_id,feature_key' });
     if (error) return fail('Could not save the feature configuration');
+
+    // Also sync store_settings online_payment_enabled if online_payments feature is provided
+    if (features.online_payments !== undefined) {
+      await admin.from('store_settings').update({
+        online_payment_enabled: Boolean(features.online_payments),
+        updated_at: new Date().toISOString(),
+      }).eq('store_id', storeId);
+    }
   }
   if (!(await saveDraft(onb, { stepData: { ...onb.stepData, features }, currentStep: advance(onb.currentStep, 7) }))) {
     return fail('Could not save the draft');
@@ -384,20 +430,20 @@ export async function activateStore(onb: OnboardingDraft, adminId: string): Prom
   const issues = activationIssues(state);
   if (issues.length > 0) return fail(issues.join(' '));
 
-  const supabase = await createSupabaseServerClient();
-  const { data: activated, error: storeError } = await supabase
+  const adminSb = createSupabaseAdminClient();
+  const { data: activated, error: storeError } = await adminSb
     .from('stores')
     .update({ status: 'active', updated_at: new Date().toISOString() })
     .eq('id', onb.storeId)
     .eq('status', 'draft')
-    .select('id');
+    .select('id, slug');
   if (storeError) return fail('Could not activate the store');
   if (!activated || activated.length === 0) {
-    const { data: current } = await supabase.from('stores').select('status').eq('id', onb.storeId).maybeSingle();
+    const { data: current } = await adminSb.from('stores').select('status').eq('id', onb.storeId).maybeSingle();
     if (current?.status !== 'active') return fail('The store is not in draft status, so it was not activated.');
   }
 
-  const { data: completed, error: completeError } = await supabase
+  const { data: completed, error: completeError } = await adminSb
     .from('store_onboardings')
     .update({ status: 'completed', completed_at: new Date().toISOString(), current_step: 8 })
     .eq('id', onb.id)
@@ -409,8 +455,10 @@ export async function activateStore(onb: OnboardingDraft, adminId: string): Prom
     try {
       await recordAdminAudit({ actorId: adminId, storeId: onb.storeId, action: 'store.onboarded', entityType: 'store', entityId: onb.storeId, after: { onboardingId: onb.id } });
     } catch {
-      return done('Store activated. The audit entry could not be written.');
+      // Audit entry failure does not block activation
     }
   }
+
+  revalidatePath('/', 'layout');
   return done('Store activated.');
 }

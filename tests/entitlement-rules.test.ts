@@ -84,9 +84,12 @@ test('feature: subscribed stores need an active subscription, an enabled flag an
   assert.equal(featureDecision('upcoming', true, {}, 'quotations'), false);
 });
 
-test('feature: allowance and setup stores keep features unless a flag is explicitly disabled', () => {
-  assert.equal(featureDecision('allowance', undefined, {}, 'pos_billing'), true);
+test('feature: missing or false flags are always hidden, even for allowance/setup stores', () => {
+  assert.equal(featureDecision('allowance', undefined, {}, 'pos_billing'), false);
   assert.equal(featureDecision('allowance', false, {}, 'pos_billing'), false);
+  assert.equal(featureDecision('allowance', true, {}, 'pos_billing'), true);
+  assert.equal(featureDecision('setup', false, {}, 'pos_billing'), false);
+  assert.equal(featureDecision('setup', undefined, {}, 'pos_billing'), false);
   assert.equal(featureDecision('setup', true, {}, 'pos_billing'), true);
   assert.equal(featureDecision('unsubscribed', true, {}, 'pos_billing'), false);
 });

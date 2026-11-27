@@ -8,6 +8,7 @@ import { currentLocale } from '@/lib/i18n/server';
 import { createTranslator } from '@/lib/i18n/translate';
 import { GstBreakdown } from '@/components/guest/gst-breakdown';
 import { getCartView } from '@/lib/services/cart';
+import { isFeatureEnabled } from '@/lib/services/entitlements';
 import { readGuestSession } from '@/lib/services/guest';
 import { getStoreBySlug } from '@/lib/services/storefront';
 
@@ -17,8 +18,11 @@ export default async function CartPage({ params }: { params: Promise<{ storeSlug
   const { storeSlug } = await params;
   const store = await getStoreBySlug(storeSlug);
   if (!store) notFound();
-  const t = createTranslator(await currentLocale());
-  const session = await readGuestSession(store.id, storeSlug);
+  const [t, session, couponsEnabled] = await Promise.all([
+    currentLocale().then(createTranslator),
+    readGuestSession(store.id, storeSlug),
+    isFeatureEnabled(store.id, 'coupons'),
+  ]);
   const cart = session ? await getCartView(store.id, session.id) : { cartId: null, lines: [], totals: null, itemCount: 0 };
 
   if (cart.lines.length === 0 || !cart.totals) {
@@ -92,7 +96,7 @@ export default async function CartPage({ params }: { params: Promise<{ storeSlug
         <dl className="mt-3 grid gap-2 text-sm">
           <Row label={t('cart.pickup')} value={t('cart.free')} />
         </dl>
-        <CartCouponForm storeSlug={storeSlug} appliedCode={cart.coupon?.code ?? null} />
+        {couponsEnabled ? <CartCouponForm storeSlug={storeSlug} appliedCode={cart.coupon?.code ?? null} /> : null}
         {cart.coupon?.error ? (
           <p role="alert" className="mt-2 text-sm text-danger [overflow-wrap:anywhere]">
             {t('cart.couponError', { label: couponLabel, error: cart.coupon.error })}

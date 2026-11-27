@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { readGuestSession } from '@/lib/services/guest';
+import { isFeatureEnabled } from '@/lib/services/entitlements';
 import { listProjects, PROJECT_TYPES } from '@/lib/services/house-projects';
 import { getStoreBySlug } from '@/lib/services/storefront';
 import { formatRupees, translate } from '@/lib/i18n/translate';
@@ -20,9 +21,12 @@ export default async function ProjectsPage({
   const { notice, error } = await searchParams;
   const store = await getStoreBySlug(storeSlug);
   if (!store) notFound();
-  const session = await readGuestSession(store.id, storeSlug);
+  const [session, locale, visualizerEnabled] = await Promise.all([
+    readGuestSession(store.id, storeSlug),
+    currentLocale(),
+    isFeatureEnabled(store.id, 'room_visualiser'),
+  ]);
   const projects = session ? await listProjects(store.id, session.id) : [];
-  const locale = await currentLocale();
   const t = (key: Parameters<typeof translate>[1]) => translate(locale, key);
 
   return (
@@ -85,9 +89,11 @@ export default async function ProjectsPage({
         )}
       </section>
 
-      <p className="text-sm text-ink-muted">
-        Want to see how a room looks first? <Link href={`/store/${storeSlug}/visualizer`} className="font-semibold text-burgundy underline">Open the visualizer</Link>.
-      </p>
+      {visualizerEnabled ? (
+        <p className="text-sm text-ink-muted">
+          Want to see how a room looks first? <Link href={`/store/${storeSlug}/visualizer`} className="font-semibold text-burgundy underline">Open the visualizer</Link>.
+        </p>
+      ) : null}
     </div>
   );
 }

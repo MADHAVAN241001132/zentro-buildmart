@@ -71,8 +71,10 @@ export async function saveOnboardingStepAction(onboardingId: string, step: numbe
         email: text(fd, 'email'),
         addressLine: text(fd, 'addressLine'),
         city: text(fd, 'city'),
+        district: text(fd, 'district'),
         state: text(fd, 'state'),
         pincode: text(fd, 'pincode'),
+        operatingHours: text(fd, 'operatingHours'),
         description: text(fd, 'description'),
         brandColour: text(fd, 'brandColour') || '#6A0D2A',
       });

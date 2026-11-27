@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { parseRupeesToPaise } from '@/lib/money';
 import { friendly } from '@/lib/errors';
+import { checkFeature } from '@/lib/services/entitlements';
 import { requireOwnerPermission } from '@/lib/services/owner';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { uuidSchema } from '@/lib/validation/pos';
@@ -22,7 +23,9 @@ function back(error?: string): never {
 
 /** Schedules a delivery. The charge is whole rupees; the database refuses it once a payment has started. */
 export async function scheduleDeliveryAction(fd: FormData): Promise<void> {
-  await requireOwnerPermission('order_management');
+  const owner = await requireOwnerPermission('order_management');
+  const blocked = await checkFeature(owner.storeId, 'delivery');
+  if (blocked) back(blocked);
   const order = uuidSchema.safeParse(text(fd, 'orderId'));
   if (!order.success) back('This order could not be found');
   const date = text(fd, 'scheduledOn');
@@ -45,7 +48,9 @@ export async function scheduleDeliveryAction(fd: FormData): Promise<void> {
 
 /** Moves a delivery to the next stage. The database checks the allowed transitions and the payment rule. */
 export async function setDeliveryStatusAction(fd: FormData): Promise<void> {
-  await requireOwnerPermission('order_management');
+  const owner = await requireOwnerPermission('order_management');
+  const blocked = await checkFeature(owner.storeId, 'delivery');
+  if (blocked) back(blocked);
   const order = uuidSchema.safeParse(text(fd, 'orderId'));
   const to = text(fd, 'to');
   if (!order.success || !(TARGETS as readonly string[]).includes(to)) back('Choose a valid delivery step');

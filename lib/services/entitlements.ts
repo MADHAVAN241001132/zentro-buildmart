@@ -1,6 +1,17 @@
 import 'server-only';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
-import { COMMERCE_STATES, PREMIUM_FEATURE_KEYS, classifyDatabaseLimitMessage, type PremiumFeatureKey, type SubscriptionState } from '@/lib/entitlements/rules';
+import {
+  COMMERCE_STATES,
+  classifyDatabaseLimitMessage,
+  coveringRow,
+  featureDecision,
+  istDate,
+  type SubscriptionRow,
+  type SubscriptionState,
+} from '@/lib/entitlements/rules';
+import { FEATURE_KEYS } from '@/lib/validation/admin';
+
+export type FeatureKey = (typeof FEATURE_KEYS)[number];
 
 /**
  * Central subscription and feature authorisation. Services, server actions and API routes
@@ -22,16 +33,20 @@ export class EntitlementError extends Error {
   }
 }
 
-const FEATURE_MESSAGE: Record<PremiumFeatureKey, string> = {
-  pos_billing: 'POS billing is not included in this store’s subscription.',
-  quotations: 'Quotations are not included in this store’s subscription.',
-  room_visualiser: 'The Room Visualizer is not included in this store’s subscription.',
-  house_project_planner: 'The House Project Planner is not included in this store’s subscription.',
-  bulk_imports: 'Bulk imports are not included in this store’s subscription.',
-  qr_scan_analytics: 'QR analytics is not included in this store’s subscription.',
-  tile_batches: 'Tile batches are not included in this store’s subscription.',
-  purchase_orders: 'Purchasing is not included in this store’s subscription.',
-  reports: 'Reports and exports are not included in this store’s subscription.',
+const FEATURE_MESSAGE: Record<FeatureKey, string> = {
+  online_payments: 'Online payments are not enabled for this store.',
+  pos_billing: 'POS billing is not enabled for this store.',
+  quotations: 'Quotations are not enabled for this store.',
+  credit_ledger: 'Credit ledger is not enabled for this store.',
+  delivery: 'Delivery is not enabled for this store.',
+  coupons: 'Coupons are not enabled for this store.',
+  tile_batches: 'Tile batches are not enabled for this store.',
+  purchase_orders: 'Purchasing is not enabled for this store.',
+  room_visualiser: 'The Room Visualizer is not enabled for this store.',
+  qr_scan_analytics: 'QR analytics is not enabled for this store.',
+  house_project_planner: 'The House Project Planner is not enabled for this store.',
+  bulk_imports: 'Bulk imports are not enabled for this store.',
+  reports: 'Reports and exports are not enabled for this store.',
 };
 
 
@@ -73,12 +88,75 @@ export async function checkCommerce(storeId: string): Promise<string | null> {
   }
 }
 
-/** Refuses premium modules that are not enabled for the store today. */
-export async function assertFeature(storeId: string, key: PremiumFeatureKey): Promise<void> {
-  if (!(PREMIUM_FEATURE_KEYS as readonly string[]).includes(key)) throw new Error('Unknown feature key');
-  const { data, error } = await createSupabaseAdminClient().rpc('zb_feature_allowed', { p_store: storeId, p_key: key });
-  if (error) throw new Error('Could not check the feature');
-  if (data !== true) throw new EntitlementError('feature_disabled', FEATURE_MESSAGE[key]);
+/** Refuses modules that are not enabled/assigned for the store today. */
+export async function assertFeature(storeId: string, key: FeatureKey): Promise<void> {
+  if (!(FEATURE_KEYS as readonly string[]).includes(key)) throw new Error('Unknown feature key');
+  const enabled = await isFeatureEnabled(storeId, key);
+  if (!enabled) throw new EntitlementError('feature_disabled', FEATURE_MESSAGE[key]);
+}
+
+/** Boolean form of assertFeature that fails closed on any error. Uses the single authoritative store feature resolver. */
+export async function isFeatureEnabled(storeId: string, key: FeatureKey): Promise<boolean> {
+  if (!(FEATURE_KEYS as readonly string[]).includes(key)) return false;
+  try {
+    const enabledFeatures = await getStoreEnabledFeatures(storeId);
+    return enabledFeatures.has(key);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Loads all currently enabled & assigned feature keys for a store in one batched pass,
+ * mirroring app.store_feature_allowed. Fails closed (empty set) if any query fails.
+ */
+export async function getStoreEnabledFeatures(storeId: string): Promise<Set<FeatureKey>> {
+  try {
+    const admin = createSupabaseAdminClient();
+    const [stateRes, flagsRes, subsRes] = await Promise.all([
+      admin.rpc('zb_subscription_state', { p_store: storeId }),
+      admin.from('feature_flags').select('feature_key, enabled').eq('store_id', storeId),
+      admin
+        .from('subscriptions')
+        .select('status, period_start, period_end, grace_ends_on, subscription_plans(features)')
+        .eq('store_id', storeId),
+    ]);
+    if (stateRes.error || typeof stateRes.data !== 'string' || flagsRes.error || subsRes.error) {
+      return new Set();
+    }
+    const state = stateRes.data as SubscriptionState;
+    const flagMap = new Map<string, boolean>();
+    for (const f of flagsRes.data ?? []) {
+      flagMap.set(f.feature_key as string, Boolean(f.enabled));
+    }
+
+    let planFeatures: Record<string, unknown> = {};
+    if (state === 'active') {
+      const today = istDate();
+      const rows = (subsRes.data ?? []).map((r) => ({
+        status: r.status as SubscriptionRow['status'],
+        periodStart: r.period_start as string,
+        periodEnd: r.period_end as string,
+        graceEndsOn: (r.grace_ends_on as string | null) ?? null,
+        features: ((Array.isArray(r.subscription_plans) ? r.subscription_plans[0] : r.subscription_plans) as { features?: Record<string, unknown> } | null)?.features ?? {},
+      }));
+      const best = coveringRow(rows, today);
+      if (best) {
+        const matched = rows.find((r) => r.periodStart === best.periodStart && r.periodEnd === best.periodEnd && r.status === best.status);
+        planFeatures = matched?.features ?? {};
+      }
+    }
+
+    const enabled = new Set<FeatureKey>();
+    for (const key of FEATURE_KEYS) {
+      if (featureDecision(state, flagMap.get(key), planFeatures, key)) {
+        enabled.add(key);
+      }
+    }
+    return enabled;
+  } catch {
+    return new Set();
+  }
 }
 
 export type SubscriptionSummaryRow = {
@@ -116,7 +194,7 @@ export async function listSubscriptionHistory(storeId: string): Promise<Subscrip
  * refusal text when the feature is not available, or null when it is. Unexpected failures
  * still throw, so a failed check never allows the operation.
  */
-export async function checkFeature(storeId: string, key: PremiumFeatureKey): Promise<string | null> {
+export async function checkFeature(storeId: string, key: FeatureKey): Promise<string | null> {
   try {
     await assertFeature(storeId, key);
     return null;

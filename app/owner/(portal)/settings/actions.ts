@@ -3,9 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { parseRupeesToPaise } from '@/lib/money';
+import { clearMediaImage, setMediaImage } from '@/lib/services/media';
 import { requireOwnerPermission } from '@/lib/services/owner';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { issuesToFields } from '@/lib/validation/owner';
+import type { BrandingFormState } from '@/components/admin/store-branding-manager';
 
 export interface SettingsState {
   ok: boolean;
@@ -72,4 +75,87 @@ export async function saveSettingsAction(_prev: SettingsState, fd: FormData): Pr
   revalidatePath('/owner/settings');
   revalidatePath(`/store/${owner.storeSlug}`);
   return { ok: true, message: 'Settings saved' };
+}
+
+const ownerBrandingSchema = z.object({
+  name: z.string().trim().min(2, 'Store name must be at least 2 characters').max(120, 'Store name is too long'),
+  tagline: z.string().trim().max(160, 'Tagline must be 160 characters or fewer'),
+  description: z.string().trim().max(1000, 'Description must be 1000 characters or fewer'),
+});
+
+/** Allows authorized store owners/managers to update their store name, tagline, description, logo and banner. */
+export async function updateOwnerBrandingAction(
+  _prev: BrandingFormState,
+  fd: FormData,
+): Promise<BrandingFormState> {
+  const owner = await requireOwnerPermission('store_settings');
+  if (owner.role !== 'owner' && owner.role !== 'manager') {
+    return { ok: false, message: 'Only owners and managers can change store branding' };
+  }
+
+  const parsed = ownerBrandingSchema.safeParse({
+    name: txt(fd, 'name'),
+    tagline: txt(fd, 'tagline'),
+    description: txt(fd, 'description'),
+  });
+  if (!parsed.success) {
+    return { ok: false, message: 'Check the highlighted fields', fieldErrors: issuesToFields(parsed.error) };
+  }
+
+  const logoEntry = fd.get('logoFile');
+  const removeLogo = txt(fd, 'removeLogo') === 'true';
+  if (logoEntry instanceof File && logoEntry.size > 0) {
+    const res = await setMediaImage(owner.storeId, 'logo', owner.storeId, logoEntry, owner.userId);
+    if (!res.ok) return { ok: false, message: res.error };
+  } else if (removeLogo) {
+    const res = await clearMediaImage(owner.storeId, 'logo', owner.storeId);
+    if (!res.ok) return { ok: false, message: res.error };
+  }
+
+  const bannerEntry = fd.get('bannerFile');
+  const removeBanner = txt(fd, 'removeBanner') === 'true';
+  if (bannerEntry instanceof File && bannerEntry.size > 0) {
+    const res = await setMediaImage(owner.storeId, 'banner', owner.storeId, bannerEntry, owner.userId);
+    if (!res.ok) return { ok: false, message: res.error };
+  } else if (removeBanner) {
+    const res = await clearMediaImage(owner.storeId, 'banner', owner.storeId);
+    if (!res.ok) return { ok: false, message: res.error };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const { data: settings } = await adminClient
+    .from('store_settings')
+    .select('opening_hours')
+    .eq('store_id', owner.storeId)
+    .maybeSingle();
+
+  const { error: storeErr } = await adminClient
+    .from('stores')
+    .update({
+      name: parsed.data.name,
+      business_description: parsed.data.description || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', owner.storeId);
+  if (storeErr) return { ok: false, message: 'Could not save store branding details' };
+
+  const existingHours = (settings?.opening_hours as Record<string, unknown> | null) ?? {};
+  const nextHours = {
+    ...existingHours,
+    tagline: parsed.data.tagline || null,
+  };
+  const { error: settingsErr } = await adminClient
+    .from('store_settings')
+    .update({ opening_hours: nextHours, updated_at: new Date().toISOString() })
+    .eq('store_id', owner.storeId);
+  if (settingsErr) return { ok: false, message: 'Could not save store tagline' };
+
+  revalidatePath('/owner/settings');
+  revalidatePath('/owner', 'layout');
+  revalidatePath(`/admin/stores/${owner.storeId}`);
+  revalidatePath(`/store/${owner.storeSlug}`, 'layout');
+  revalidatePath(`/store/${owner.storeSlug}`, 'page');
+  revalidatePath('/', 'layout');
+
+  return { ok: true, message: 'Store branding saved and synced to storefront.' };
 }

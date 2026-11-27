@@ -19,7 +19,7 @@ export function TextField({ name, label, error, hint, className, ...props }: Com
   const id = `f-${name}`;
   return (
     <Wrap id={id} name={name} label={label} error={error} hint={hint} className={className}>
-      <input id={id} name={name} aria-invalid={Boolean(error)} className={CONTROL} {...props} />
+      <input id={id} name={name} aria-invalid={Boolean(error)} className={CONTROL} suppressHydrationWarning {...props} />
     </Wrap>
   );
 }
@@ -28,7 +28,7 @@ export function SelectField({ name, label, error, hint, className, children, ...
   const id = `f-${name}`;
   return (
     <Wrap id={id} name={name} label={label} error={error} hint={hint} className={className}>
-      <select id={id} name={name} aria-invalid={Boolean(error)} className={CONTROL} {...props}>
+      <select id={id} name={name} aria-invalid={Boolean(error)} className={CONTROL} suppressHydrationWarning {...props}>
         {children}
       </select>
     </Wrap>
@@ -39,7 +39,7 @@ export function TextAreaField({ name, label, error, hint, className, ...props }:
   const id = `f-${name}`;
   return (
     <Wrap id={id} name={name} label={label} error={error} hint={hint} className={className}>
-      <textarea id={id} name={name} aria-invalid={Boolean(error)} className={CONTROL} rows={3} {...props} />
+      <textarea id={id} name={name} aria-invalid={Boolean(error)} className={CONTROL} rows={3} suppressHydrationWarning {...props} />
     </Wrap>
   );
 }
@@ -47,7 +47,7 @@ export function TextAreaField({ name, label, error, hint, className, ...props }:
 export function CheckField({ name, label, defaultChecked }: { name: string; label: string; defaultChecked?: boolean }) {
   return (
     <label className="flex items-center gap-2 text-sm font-medium text-ink">
-      <input type="checkbox" name={name} defaultChecked={defaultChecked} className="h-4 w-4 accent-burgundy" />
+      <input type="checkbox" name={name} defaultChecked={defaultChecked} className="h-4 w-4 accent-burgundy" suppressHydrationWarning />
       {label}
     </label>
   );

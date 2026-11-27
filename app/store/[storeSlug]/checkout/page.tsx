@@ -7,6 +7,7 @@ import { formatINR } from '@/lib/money';
 import { currentLocale } from '@/lib/i18n/server';
 import { createTranslator } from '@/lib/i18n/translate';
 import { getCartView } from '@/lib/services/cart';
+import { isFeatureEnabled } from '@/lib/services/entitlements';
 import { readGuestSession } from '@/lib/services/guest';
 import { getStoreBySlug } from '@/lib/services/storefront';
 
@@ -16,13 +17,17 @@ export default async function CheckoutPage({ params }: { params: Promise<{ store
   const { storeSlug } = await params;
   const store = await getStoreBySlug(storeSlug);
   if (!store) notFound();
-  const session = await readGuestSession(store.id, storeSlug);
+  const [session, onlineFeatureEnabled] = await Promise.all([
+    readGuestSession(store.id, storeSlug),
+    isFeatureEnabled(store.id, 'online_payments'),
+  ]);
+  const onlineEnabled = store.paymentSettings.onlineEnabled && onlineFeatureEnabled;
   const cart = session ? await getCartView(store.id, session.id) : null;
   if (!cart || cart.lines.length === 0 || !cart.totals) redirect(`/store/${storeSlug}/cart`);
 
   const totals = cart.totals;
   const t = createTranslator(await currentLocale());
-  if (!store.paymentSettings.onlineEnabled && !store.paymentSettings.cashEnabled) {
+  if (!onlineEnabled && !store.paymentSettings.cashEnabled) {
     return <p className="text-ink">This showroom is not accepting orders right now.</p>;
   }
 
@@ -50,7 +55,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ store
         ) : null}
         <CheckoutForm
           storeSlug={storeSlug}
-          onlineEnabled={store.paymentSettings.onlineEnabled}
+          onlineEnabled={onlineEnabled}
           cashEnabled={store.paymentSettings.cashEnabled}
           totalLabel={formatINR(totals.totalPaise)}
         />

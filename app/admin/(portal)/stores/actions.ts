@@ -2,13 +2,17 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { z } from 'zod';
 import { requireAdmin } from '@/lib/services/admin';
 import { recordAdminAudit } from '@/lib/services/audit';
+import { clearMediaImage, setMediaImage } from '@/lib/services/media';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { adminStoreSchema, STORE_STATUSES } from '@/lib/validation/admin';
 import { legalProfileSchema } from '@/lib/validation/legal';
 import { issuesToFields } from '@/lib/validation/owner';
 import { targetUrl } from '@/lib/qr';
+import type { BrandingFormState } from '@/components/admin/store-branding-manager';
 
 export interface StoreFormState {
   ok: boolean;
@@ -133,6 +137,7 @@ export async function updateStoreAction(id: string, _prev: StoreFormState, fd: F
   await recordAdminAudit({ actorId: admin.userId, storeId: id, action: 'store.updated', entityType: 'store', entityId: id, before, after: { slug: d.slug, status: d.status, name: d.name, gst_registration: legalFields.gst_registration } });
   revalidatePath(`/admin/stores/${id}`);
   revalidatePath('/admin/stores');
+  revalidatePath('/', 'layout');
   return { ok: true, message: 'Store saved' };
 }
 
@@ -182,4 +187,97 @@ export async function ensureShowroomQrAction(formData: FormData): Promise<void> 
   await recordAdminAudit({ actorId: admin.userId, storeId: id, action: 'qr.showroom_created', entityType: 'qr_code', after: { target_type: 'showroom' } });
   revalidatePath(`/admin/stores/${id}`);
   revalidatePath('/admin/qr');
+}
+
+const brandingSchema = z.object({
+  name: z.string().trim().min(2, 'Store name must be at least 2 characters').max(120, 'Store name is too long'),
+  tagline: z.string().trim().max(160, 'Tagline must be 160 characters or fewer'),
+  description: z.string().trim().max(1000, 'Description must be 1000 characters or fewer'),
+});
+
+/** Updates store name, tagline, description, logo and storefront banner from Super Admin Manage Store. */
+export async function updateStoreBrandingAction(
+  id: string,
+  _prev: BrandingFormState,
+  fd: FormData,
+): Promise<BrandingFormState> {
+  const admin = await requireAdmin();
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, message: 'Invalid store ID' };
+
+  const get = (k: string) => (typeof fd.get(k) === 'string' ? (fd.get(k) as string) : '');
+  const parsed = brandingSchema.safeParse({
+    name: get('name'),
+    tagline: get('tagline'),
+    description: get('description'),
+  });
+  if (!parsed.success) {
+    return { ok: false, message: 'Check the highlighted fields', fieldErrors: issuesToFields(parsed.error) };
+  }
+
+  const adminClient = createSupabaseAdminClient();
+  const [{ data: store }, { data: settings }] = await Promise.all([
+    adminClient.from('stores').select('id, slug, name, logo_url, banner_url, business_description').eq('id', id).maybeSingle(),
+    adminClient.from('store_settings').select('opening_hours').eq('store_id', id).maybeSingle(),
+  ]);
+  if (!store) return { ok: false, message: 'Store not found' };
+
+  const logoEntry = fd.get('logoFile');
+  const removeLogo = get('removeLogo') === 'true';
+  if (logoEntry instanceof File && logoEntry.size > 0) {
+    const res = await setMediaImage(id, 'logo', id, logoEntry, admin.userId);
+    if (!res.ok) return { ok: false, message: res.error };
+  } else if (removeLogo) {
+    const res = await clearMediaImage(id, 'logo', id);
+    if (!res.ok) return { ok: false, message: res.error };
+  }
+
+  const bannerEntry = fd.get('bannerFile');
+  const removeBanner = get('removeBanner') === 'true';
+  if (bannerEntry instanceof File && bannerEntry.size > 0) {
+    const res = await setMediaImage(id, 'banner', id, bannerEntry, admin.userId);
+    if (!res.ok) return { ok: false, message: res.error };
+  } else if (removeBanner) {
+    const res = await clearMediaImage(id, 'banner', id);
+    if (!res.ok) return { ok: false, message: res.error };
+  }
+
+  const { error: storeErr } = await adminClient
+    .from('stores')
+    .update({
+      name: parsed.data.name,
+      business_description: parsed.data.description || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (storeErr) return { ok: false, message: 'Could not save store branding details' };
+
+  const existingHours = (settings?.opening_hours as Record<string, unknown> | null) ?? {};
+  const nextHours = {
+    ...existingHours,
+    tagline: parsed.data.tagline || null,
+  };
+  const { error: settingsErr } = await adminClient
+    .from('store_settings')
+    .update({ opening_hours: nextHours, updated_at: new Date().toISOString() })
+    .eq('store_id', id);
+  if (settingsErr) return { ok: false, message: 'Could not save store tagline' };
+
+  await recordAdminAudit({
+    actorId: admin.userId,
+    storeId: id,
+    action: 'store.branding_updated',
+    entityType: 'store',
+    entityId: id,
+    before: { name: store.name, business_description: store.business_description },
+    after: { name: parsed.data.name, tagline: parsed.data.tagline || null, business_description: parsed.data.description || null },
+  });
+
+  const slug = store.slug as string;
+  revalidatePath(`/admin/stores/${id}`);
+  revalidatePath('/admin/stores');
+  revalidatePath(`/store/${slug}`, 'layout');
+  revalidatePath(`/store/${slug}`, 'page');
+  revalidatePath('/', 'layout');
+
+  return { ok: true, message: 'Store branding saved and synced to storefront.' };
 }

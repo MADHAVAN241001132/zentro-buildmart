@@ -2,7 +2,7 @@
 
 ZENTRO BuildMart is a multi-store platform for construction-materials showrooms. Customers scan a store QR code and browse a digital showroom without registering; store owners and staff run the store from a portal; a Platform Administrator manages all stores.
 
-**Status:** **Verified Full-Stack Local Deployment with Hosted Supabase Integration & Production Build Complete.** 335/335 unit tests passing (100%), 0 TypeScript errors, 0 ESLint errors, 28/28 portal & storefront UI routes verified with automated browser testing. Ready for Vercel deployment. See `docs/LOCAL_VERIFICATION_REPORT.md`.
+**Status:** **Production-Ready for GitHub & Vercel Deployment.** 345/345 unit tests passing (100%), 0 TypeScript errors, 0 ESLint errors, production build verified. See `DEPLOYMENT.md` and `docs/LOCAL_VERIFICATION_REPORT.md`.
 
 ---
 
@@ -57,7 +57,7 @@ Permissions are enforced in the database (row-level security and security-define
 | `app/` | Next.js routes: `admin/` (Platform Admin), `owner/` (Store Owner), `store/[storeSlug]/` (Guest), `q/[token]/` (QR entry), `api/` (route handlers and cron) |
 | `components/` | Shared UI: `owner/`, `guest/` (including `gst-breakdown.tsx`), `ui/`, `pwa/` |
 | `lib/` | Application services and pure logic: pricing, GST policy, payments, exports, imports, i18n, Supabase clients, validation |
-| `supabase/migrations/` | Database migrations `0001` to `0061`, applied in order |
+| `supabase/migrations/` | Database migrations `0001` to `0063`, applied in order |
 | `supabase/tests/` | Database test suites (run by `scripts/db.sh test`) |
 | `supabase/seed/dev_seed.sql` | Development demo data only |
 | `supabase/local-stub/` | Local PostgreSQL test shim (never for hosted Supabase) |

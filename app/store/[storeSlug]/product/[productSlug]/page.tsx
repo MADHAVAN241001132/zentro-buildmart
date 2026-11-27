@@ -5,6 +5,7 @@ import { ProductGallery } from '@/components/guest/product-gallery';
 import { AddToCartForm } from '@/components/guest/add-to-cart-form';
 import { ListToggle } from '@/components/guest/list-toggle';
 import { formatINR } from '@/lib/money';
+import { isFeatureEnabled } from '@/lib/services/entitlements';
 import { getProductDetail, getStoreBySlug, listRelatedProducts } from '@/lib/services/storefront';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,10 @@ export default async function ProductPage({
   const selected = product.variants.find((v) => v.id === sp.variant) ?? product.defaultVariant ?? product.variants[0];
   if (!selected) notFound();
   const quantity = Math.min(999, Math.max(1, Number.parseInt(sp.qty ?? '1', 10) || 1));
-  const related = await listRelatedProducts(store.id, product.categorySlug, product.id);
+  const [related, quotationsEnabled] = await Promise.all([
+    listRelatedProducts(store.id, product.categorySlug, product.id),
+    isFeatureEnabled(store.id, 'quotations'),
+  ]);
   const specEntries = Object.entries(product.specs).filter(([, v]) => v !== null && v !== '');
   const save = selected.mrpPaise && selected.mrpPaise > selected.salePricePaise ? selected.mrpPaise - selected.salePricePaise : 0;
 
@@ -107,9 +111,11 @@ export default async function ProductPage({
                 <ListToggle storeSlug={storeSlug} productId={product.id} kind="wishlist" />
                 <ListToggle storeSlug={storeSlug} productId={product.id} kind="compare" />
               </div>
-              <Link href={`/store/${storeSlug}/quotes/request?variant=${selected.id}&quantity=${Math.min(quantity, selected.availableUnits)}`} className="mt-3 inline-block text-sm font-semibold text-burgundy underline">
-                Request a quotation for this product
-              </Link>
+              {quotationsEnabled ? (
+                <Link href={`/store/${storeSlug}/quotes/request?variant=${selected.id}&quantity=${Math.min(quantity, selected.availableUnits)}`} className="mt-3 inline-block text-sm font-semibold text-burgundy underline">
+                  Request a quotation for this product
+                </Link>
+              ) : null}
             </div>
           ) : null}
 

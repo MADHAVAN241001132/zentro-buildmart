@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { AlertTriangle, ArrowRight, Boxes, Banknote, ClipboardList, IndianRupee, PackageCheck, ReceiptText, TrendingUp } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Boxes, Banknote, ClipboardList, IndianRupee, PackageCheck, ReceiptText, TrendingUp, Sparkles, PlusCircle, QrCode, ExternalLink, Settings } from 'lucide-react';
 import { loadMyStorePermissions, requireOwner } from '@/lib/services/owner';
+import { getStoreEnabledFeatures, type FeatureKey } from '@/lib/services/entitlements';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { formatINR } from '@/lib/money';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -41,14 +42,14 @@ const SECTION_LABEL: Record<string, string> = {
   inventory: 'inventory',
 };
 
-const QUICK_ACTIONS = [
-  { href: '/owner/pos/new', label: 'New POS bill', permission: 'pos_billing', icon: ReceiptText },
+const QUICK_ACTIONS: Array<{ href: string; label: string; permission: string; feature?: FeatureKey; icon: typeof ReceiptText }> = [
+  { href: '/owner/pos/new', label: 'New POS bill', permission: 'pos_billing', feature: 'pos_billing', icon: ReceiptText },
   { href: '/owner/orders', label: 'Review orders', permission: 'order_management', icon: ClipboardList },
   { href: '/owner/cash', label: 'Confirm cash', permission: 'cash_confirmation', icon: Banknote },
   { href: '/owner/inventory', label: 'Check stock', permission: 'inventory_management', icon: Boxes },
   { href: '/owner/products', label: 'Manage products', permission: 'product_management', icon: PackageCheck },
-  { href: '/owner/reports', label: 'Open reports', permission: 'reports_exports', icon: TrendingUp },
-] as const;
+  { href: '/owner/reports', label: 'Open reports', permission: 'reports_exports', feature: 'reports', icon: TrendingUp },
+];
 
 /** Greeting in the store's own timezone, so a server in another zone still greets correctly. */
 function greeting(now: Date): string {
@@ -69,18 +70,22 @@ export default async function OwnerDashboard() {
   const to = now;
   const from = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [metricsResult, permissions] = await Promise.all([
+  const [metricsResult, permissions, enabledFeatures, productsCountRes] = await Promise.all([
     supabase.rpc('store_dashboard_metrics', {
       p_store: owner.storeId,
       p_from: from.toISOString(),
       p_to: new Date(to.getTime() + 60_000).toISOString(),
     }),
     loadMyStorePermissions(owner.storeId),
+    getStoreEnabledFeatures(owner.storeId),
+    supabase.from('products').select('id', { count: 'exact', head: true }).eq('store_id', owner.storeId),
   ]);
+  const productCount = productsCountRes.count ?? 0;
   const { data, error } = metricsResult;
   const held = new Set(permissions);
   const metrics = data ? (data as unknown as Metrics) : null;
   const hidden = new Set(metrics?.hidden_sections ?? []);
+  if (!enabledFeatures.has('reports')) hidden.add('reports');
 
   // Recent orders and the daily trend read the same table the Orders page uses, scoped to this store.
   // They are shown only where the RPC did not withhold the orders or reports section.
@@ -123,7 +128,7 @@ export default async function OwnerDashboard() {
   }
 
   const withheld = [...hidden].map((section) => SECTION_LABEL[section]).filter(Boolean);
-  const quick = QUICK_ACTIONS.filter((action) => held.has(action.permission));
+  const quick = QUICK_ACTIONS.filter((action) => held.has(action.permission) && (!action.feature || enabledFeatures.has(action.feature)));
   const lowStock = metrics?.low_stock_count ?? 0;
   const pendingCash = metrics?.pending_cash_count ?? 0;
   const showCashAlert = pendingCash > 0 && held.has('cash_confirmation') && !hidden.has('cash');
@@ -217,6 +222,65 @@ export default async function OwnerDashboard() {
               </ul>
             )}
           </section>
+
+          {productCount === 0 && recent.length === 0 ? (
+            <section aria-labelledby="getting-started" className="grid gap-4 rounded-card border-2 border-gold/40 bg-card p-6 shadow-rest">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-control bg-gold/20 text-burgundy">
+                  <Sparkles className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2 id="getting-started" className="font-display text-xl text-burgundy">Welcome to your new digital showroom!</h2>
+                  <p className="text-xs text-ink-muted">Complete these initial steps to set up your catalog and start receiving customer orders.</p>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 pt-2">
+                {held.has('product_management') ? (
+                  <Link href="/owner/products" className="flex items-center gap-3 rounded-control border border-line bg-cream/60 p-3.5 transition hover:border-burgundy">
+                    <PlusCircle className="h-5 w-5 text-burgundy shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-ink">Add Your First Product</p>
+                      <p className="text-xs text-ink-muted">Set prices, units & descriptions</p>
+                    </div>
+                  </Link>
+                ) : null}
+                {held.has('category_brand_management') ? (
+                  <Link href="/owner/categories" className="flex items-center gap-3 rounded-control border border-line bg-cream/60 p-3.5 transition hover:border-burgundy">
+                    <Boxes className="h-5 w-5 text-burgundy shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-ink">Create Categories & Brands</p>
+                      <p className="text-xs text-ink-muted">Organize catalogue navigation</p>
+                    </div>
+                  </Link>
+                ) : null}
+                {held.has('store_settings') ? (
+                  <Link href="/owner/settings" className="flex items-center gap-3 rounded-control border border-line bg-cream/60 p-3.5 transition hover:border-burgundy">
+                    <Settings className="h-5 w-5 text-burgundy shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-ink">Upload Logo & Banner</p>
+                      <p className="text-xs text-ink-muted">Customize storefront branding</p>
+                    </div>
+                  </Link>
+                ) : null}
+                {held.has('qr_management') ? (
+                  <Link href="/owner/qr" className="flex items-center gap-3 rounded-control border border-line bg-cream/60 p-3.5 transition hover:border-burgundy">
+                    <QrCode className="h-5 w-5 text-burgundy shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-ink">Download Store QR</p>
+                      <p className="text-xs text-ink-muted">Print entrance & counter posters</p>
+                    </div>
+                  </Link>
+                ) : null}
+                <Link href={`/store/${owner.storeSlug}`} target="_blank" className="flex items-center gap-3 rounded-control border border-line bg-cream/60 p-3.5 transition hover:border-burgundy">
+                  <ExternalLink className="h-5 w-5 text-burgundy shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-ink">Preview Guest Storefront</p>
+                    <p className="text-xs text-ink-muted">See how customers view your shop</p>
+                  </div>
+                </Link>
+              </div>
+            </section>
+          ) : null}
 
           <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
             {trend.length > 0 ? (

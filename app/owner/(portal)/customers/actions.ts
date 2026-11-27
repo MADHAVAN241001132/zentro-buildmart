@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { checkFeature } from '@/lib/services/entitlements';
 import { requireOwnerPermission } from '@/lib/services/owner';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { parseRupeesToPaise } from '@/lib/money';
@@ -80,6 +81,8 @@ export async function updateCustomerAction(id: string, _prev: CustomerState, fd:
  */
 export async function recordCreditEntryAction(_prev: CustomerState, fd: FormData): Promise<CustomerState> {
   const owner = await requireOwnerPermission('credit_management');
+  const blocked = await checkFeature(owner.storeId, 'credit_ledger');
+  if (blocked) return { ok: false, message: blocked };
   const customerId = String(fd.get('customerId') ?? '');
   const type = String(fd.get('entryType') ?? '');
   const amountText = String(fd.get('amountRupees') ?? '').trim();

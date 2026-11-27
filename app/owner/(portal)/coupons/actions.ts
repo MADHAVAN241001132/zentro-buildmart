@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { parseRupeesToPaise } from '@/lib/money';
 import { friendly } from '@/lib/errors';
+import { checkFeature } from '@/lib/services/entitlements';
 import { requireOwnerPermission } from '@/lib/services/owner';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { uuidSchema } from '@/lib/validation/pos';
@@ -23,6 +24,8 @@ function text(fd: FormData, key: string): string {
 /** Creates a coupon. The database check constraints enforce one discount type per coupon. */
 export async function createCouponAction(_prev: CouponState, fd: FormData): Promise<CouponState> {
   const owner = await requireOwnerPermission('store_settings');
+  const blocked = await checkFeature(owner.storeId, 'coupons');
+  if (blocked) return { ok: false, message: blocked };
 
   const code = text(fd, 'code').trim().toUpperCase();
   if (!CODE.test(code)) return { ok: false, message: 'Code: 3 to 32 letters, digits, dash or underscore' };
@@ -68,6 +71,8 @@ export async function createCouponAction(_prev: CouponState, fd: FormData): Prom
 
 export async function toggleCouponAction(fd: FormData): Promise<void> {
   const owner = await requireOwnerPermission('store_settings');
+  const blocked = await checkFeature(owner.storeId, 'coupons');
+  if (blocked) redirect(`/owner/coupons?error=${encodeURIComponent(blocked)}`);
   const id = uuidSchema.safeParse(text(fd, 'couponId'));
   if (!id.success) redirect('/owner/coupons?error=Coupon%20not%20found');
   const supabase = await createSupabaseServerClient();

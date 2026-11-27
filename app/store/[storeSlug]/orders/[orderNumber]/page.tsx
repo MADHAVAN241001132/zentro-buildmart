@@ -12,6 +12,7 @@ import { GUEST_PAYMENT_TERMINAL, type GuestPaymentStateKey } from '@/lib/payment
 import { getGuestOrder } from '@/lib/services/checkout';
 import { readGuestSession } from '@/lib/services/guest';
 import { getStoreBySlug } from '@/lib/services/storefront';
+import { isFeatureEnabled } from '@/lib/services/entitlements';
 import { retryPaymentAction } from './actions';
 import { currentLocale } from '@/lib/i18n/server';
 import { createTranslator } from '@/lib/i18n/translate';
@@ -60,7 +61,10 @@ export default async function OrderPage({
   if (!store) notFound();
   const session = await readGuestSession(store.id, storeSlug);
   if (!session) notFound();
-  const order = await getGuestOrder(store.id, session.id, orderNumber);
+  const [order, onlineEnabled] = await Promise.all([
+    getGuestOrder(store.id, session.id, orderNumber),
+    isFeatureEnabled(store.id, 'online_payments'),
+  ]);
   if (!order) notFound();
 
   const state = order.paymentState;
@@ -107,7 +111,7 @@ export default async function OrderPage({
         </p>
       ) : null}
 
-      {state.canPay ? (
+      {state.canPay && onlineEnabled ? (
         <section className="grid gap-4 rounded-card border border-line bg-card p-6">
           {order.provider === 'razorpay' && order.razorpayKeyId && order.providerOrderId ? (
             <RazorpayPayButton
@@ -125,7 +129,7 @@ export default async function OrderPage({
         </section>
       ) : null}
 
-      {state.canRetry ? (
+      {state.canRetry && onlineEnabled ? (
         <form action={retryPaymentAction} className="grid gap-2 rounded-card border border-line bg-card p-5">
           <input type="hidden" name="storeSlug" value={storeSlug} />
           <input type="hidden" name="orderNumber" value={order.orderNumber} />

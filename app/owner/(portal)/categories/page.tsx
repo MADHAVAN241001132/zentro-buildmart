@@ -3,7 +3,19 @@ import { PageHeader } from '@/components/owner/page-header';
 import { ImageSlot } from '@/components/owner/image-slot';
 import { requireOwnerPermission } from '@/lib/services/owner';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { createBrandAction, createCategoryAction, createSubcategoryAction, updateBrandAction, updateCategoryAction } from './actions';
+import {
+  createBrandAction,
+  createCategoryAction,
+  createSubcategoryAction,
+  updateBrandAction,
+  updateCategoryAction,
+} from './actions';
+import {
+  CategoriesTable,
+  BrandsTable,
+  type CategoryItem,
+  type BrandItem,
+} from '@/components/owner/categories-view';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,47 +37,110 @@ export default async function CategoriesPage() {
   }
   const categoryOptions = (categories ?? []).map((c) => ({ value: c.id as string, label: c.name as string }));
 
+  const categoryItems: CategoryItem[] = (categories ?? []).map((c) => {
+    const id = c.id as string;
+    const name = c.name as string;
+    const slug = c.slug as string;
+    const sortOrder = (c.sort_order as number) ?? 0;
+    const isActive = Boolean(c.is_active);
+    const imageUrl = (c.image_url as string | null) ?? null;
+
+    return {
+      id,
+      name,
+      slug,
+      sort_order: sortOrder,
+      is_active: isActive,
+      image_url: imageUrl,
+      productCount: categoryCounts.get(id) ?? 0,
+      editSlot: (
+        <details>
+          <summary className="cursor-pointer font-semibold text-burgundy hover:underline">
+            Edit
+          </summary>
+          <div className="mt-3 min-w-[280px] text-left">
+            <ImageSlot
+              target="category"
+              targetId={id}
+              label="Category image"
+              currentUrl={imageUrl}
+            />
+            <ConfigForm
+              action={updateCategoryAction.bind(null, id)}
+              submitLabel="Save category"
+              fields={[
+                { name: 'name', label: 'Name', required: true, defaultValue: name },
+                { name: 'slug', label: 'Slug', defaultValue: slug },
+                { name: 'sortOrder', label: 'Sort order', type: 'number', defaultValue: sortOrder },
+                { name: 'isActive', label: 'Visible in the showroom', type: 'checkbox', defaultChecked: isActive },
+              ]}
+            />
+          </div>
+        </details>
+      ),
+    };
+  });
+
+  const brandItems: BrandItem[] = (brands ?? []).map((b) => {
+    const id = b.id as string;
+    const name = b.name as string;
+    const slug = b.slug as string;
+    const isPremium = Boolean(b.is_premium);
+    const logoUrl = (b.logo_url as string | null) ?? null;
+
+    return {
+      id,
+      name,
+      slug,
+      is_premium: isPremium,
+      logo_url: logoUrl,
+      productCount: brandCounts.get(id) ?? 0,
+      editSlot: (
+        <details>
+          <summary className="cursor-pointer font-semibold text-burgundy hover:underline">
+            Edit
+          </summary>
+          <div className="mt-3 min-w-[260px] text-left">
+            <ImageSlot
+              target="brand"
+              targetId={id}
+              label="Brand logo"
+              currentUrl={logoUrl}
+            />
+            <ConfigForm
+              action={updateBrandAction.bind(null, id)}
+              submitLabel="Save brand"
+              fields={[
+                { name: 'name', label: 'Name', required: true, defaultValue: name },
+                { name: 'slug', label: 'Slug', defaultValue: slug },
+                { name: 'isPremium', label: 'Premium brand', type: 'checkbox', defaultChecked: isPremium },
+              ]}
+            />
+          </div>
+        </details>
+      ),
+    };
+  });
+
   return (
     <div className="grid gap-8">
-      <PageHeader eyebrow="Catalogue" title="Categories and brands" description="Visibility follows each category's active flag. Product counts include active products only." />
+      <PageHeader
+        eyebrow="Catalogue"
+        title="Categories and brands"
+        description="Visual category and brand management. Click on any category, brand or product count to filter the Products catalogue."
+      />
 
+      {/* SECTION 1: Categories */}
       <section className="grid gap-4" aria-labelledby="cat-heading">
-        <h2 id="cat-heading" className="font-display text-2xl text-burgundy">Categories</h2>
-        <div className="overflow-x-auto rounded-card border border-line bg-card">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="border-b border-line text-xs uppercase tracking-wide text-ink-muted">
-              <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Slug</th><th className="px-4 py-3">Products</th><th className="px-4 py-3">Active</th><th className="px-4 py-3">Edit</th></tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {(categories ?? []).map((c) => (
-                <tr key={c.id as string} className="align-top">
-                  <td className="px-4 py-3 font-medium">{c.name as string}</td>
-                  <td className="px-4 py-3 text-ink-muted">{c.slug as string}</td>
-                  <td className="px-4 py-3">{categoryCounts.get(c.id as string) ?? 0}</td>
-                  <td className="px-4 py-3">{c.is_active ? 'Yes' : 'No'}</td>
-                  <td className="px-4 py-3">
-                    <details>
-                      <summary className="cursor-pointer font-semibold text-burgundy">Edit</summary>
-                      <div className="mt-3 min-w-[280px]">
-                        <ImageSlot target="category" targetId={c.id as string} label="Category image" currentUrl={(c.image_url as string | null) ?? null} />
-                        <ConfigForm
-                          action={updateCategoryAction.bind(null, c.id as string)}
-                          submitLabel="Save category"
-                          fields={[
-                            { name: 'name', label: 'Name', required: true, defaultValue: c.name as string },
-                            { name: 'slug', label: 'Slug', defaultValue: c.slug as string },
-                            { name: 'sortOrder', label: 'Sort order', type: 'number', defaultValue: c.sort_order as number },
-                                            { name: 'isActive', label: 'Visible in the showroom', type: 'checkbox', defaultChecked: c.is_active as boolean },
-                          ]}
-                        />
-                      </div>
-                    </details>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex items-center justify-between">
+          <h2 id="cat-heading" className="font-display text-2xl text-burgundy">
+            Categories ({categoryItems.length})
+          </h2>
+          <span className="text-xs text-ink-muted">All categories feature synchronized high-resolution images</span>
         </div>
+
+        <CategoriesTable categories={categoryItems} />
+
         <div className="rounded-card border border-line bg-card p-5">
           <h3 className="mb-3 font-semibold text-ink">Add category</h3>
           <ConfigForm
@@ -82,13 +157,21 @@ export default async function CategoriesPage() {
         </div>
       </section>
 
+      {/* SECTION 2: Subcategories */}
       <section className="grid gap-4" aria-labelledby="sub-heading">
-        <h2 id="sub-heading" className="font-display text-2xl text-burgundy">Subcategories</h2>
+        <h2 id="sub-heading" className="font-display text-2xl text-burgundy">
+          Subcategories
+        </h2>
         <ul className="grid gap-1 rounded-card border border-line bg-card p-5 text-sm">
           {(subcategories ?? []).length === 0 ? <li className="text-ink-muted">No subcategories yet.</li> : null}
           {(subcategories ?? []).map((s) => {
             const parent = (categories ?? []).find((c) => c.id === s.category_id);
-            return <li key={s.id as string}>{parent ? `${parent.name as string} › ` : ''}{s.name as string}</li>;
+            return (
+              <li key={s.id as string} className="text-ink">
+                {parent ? <span className="font-semibold text-burgundy">{parent.name as string} › </span> : ''}
+                {s.name as string}
+              </li>
+            );
           })}
         </ul>
         <div className="rounded-card border border-line bg-card p-5">
@@ -106,41 +189,17 @@ export default async function CategoriesPage() {
         </div>
       </section>
 
+      {/* SECTION 3: Brands */}
       <section className="grid gap-4" aria-labelledby="brand-heading">
-        <h2 id="brand-heading" className="font-display text-2xl text-burgundy">Brands</h2>
-        <div className="overflow-x-auto rounded-card border border-line bg-card">
-          <table className="w-full min-w-[480px] text-left text-sm">
-            <thead className="border-b border-line text-xs uppercase tracking-wide text-ink-muted">
-              <tr><th className="px-4 py-3">Brand</th><th className="px-4 py-3">Premium</th><th className="px-4 py-3">Products</th><th className="px-4 py-3">Edit</th></tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {(brands ?? []).map((b) => (
-                <tr key={b.id as string} className="align-top">
-                  <td className="px-4 py-3 font-medium">{b.name as string}</td>
-                  <td className="px-4 py-3">{b.is_premium ? 'Yes' : 'No'}</td>
-                  <td className="px-4 py-3">{brandCounts.get(b.id as string) ?? 0}</td>
-                  <td className="px-4 py-3">
-                    <details>
-                      <summary className="cursor-pointer font-semibold text-burgundy">Edit</summary>
-                      <div className="mt-3 min-w-[260px]">
-                        <ImageSlot target="brand" targetId={b.id as string} label="Brand logo" currentUrl={(b.logo_url as string | null) ?? null} />
-                        <ConfigForm
-                          action={updateBrandAction.bind(null, b.id as string)}
-                          submitLabel="Save brand"
-                          fields={[
-                            { name: 'name', label: 'Name', required: true, defaultValue: b.name as string },
-                            { name: 'slug', label: 'Slug', defaultValue: b.slug as string },
-                            { name: 'isPremium', label: 'Premium brand', type: 'checkbox', defaultChecked: b.is_premium as boolean },
-                          ]}
-                        />
-                      </div>
-                    </details>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex items-center justify-between">
+          <h2 id="brand-heading" className="font-display text-2xl text-burgundy">
+            Brands ({brandItems.length})
+          </h2>
+          <span className="text-xs text-ink-muted">Click brand name or product count to filter catalogue</span>
         </div>
+
+        <BrandsTable brands={brandItems} />
+
         <div className="rounded-card border border-line bg-card p-5">
           <h3 className="mb-3 font-semibold text-ink">Add brand</h3>
           <ConfigForm

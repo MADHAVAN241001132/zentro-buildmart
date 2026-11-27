@@ -19,6 +19,9 @@ export interface StoreInfo {
   phone: string | null;
   gstin: string | null;
   brandColour: string;
+  logoUrl: string | null;
+  bannerUrl: string | null;
+  tagline: string | null;
   paymentSettings: {
     onlineEnabled: boolean;
     cashEnabled: boolean;
@@ -203,14 +206,14 @@ export async function getStoreBySlug(slug: string): Promise<StoreInfo | null> {
   const admin = createSupabaseAdminClient();
   const { data: store, error } = await admin
     .from('stores')
-    .select('id, slug, name, city, state, phone, gstin, brand_colour, legal_name, business_description, store_settings(online_payment_enabled, cash_payment_enabled, payment_expiry_minutes, order_prefix)')
+    .select('id, slug, name, city, state, phone, gstin, brand_colour, legal_name, business_description, logo_url, banner_url, store_settings(online_payment_enabled, cash_payment_enabled, payment_expiry_minutes, order_prefix, opening_hours)')
     .eq('slug', slug)
     .eq('status', 'active')
     .maybeSingle();
   if (error) throw new Error('Could not load store');
   if (!store) return null;
   const settings = (Array.isArray(store.store_settings) ? store.store_settings[0] : store.store_settings) as
-    | { online_payment_enabled: boolean; cash_payment_enabled: boolean; payment_expiry_minutes: number; order_prefix: string }
+    | { online_payment_enabled: boolean; cash_payment_enabled: boolean; payment_expiry_minutes: number; order_prefix: string; opening_hours?: Record<string, unknown> }
     | null
     | undefined;
   return {
@@ -224,9 +227,12 @@ export async function getStoreBySlug(slug: string): Promise<StoreInfo | null> {
     legalName: (store.legal_name as string | null) ?? null,
     businessDescription: (store.business_description as string | null) ?? null,
     brandColour: store.brand_colour as string,
+    logoUrl: (store.logo_url as string | null) ?? null,
+    bannerUrl: (store.banner_url as string | null) ?? null,
+    tagline: (settings?.opening_hours?.tagline as string | undefined) ?? null,
     paymentSettings: {
-      onlineEnabled: settings?.online_payment_enabled ?? true,
-      cashEnabled: settings?.cash_payment_enabled ?? true,
+      onlineEnabled: settings?.online_payment_enabled ?? false,
+      cashEnabled: settings?.cash_payment_enabled ?? false,
       paymentExpiryMinutes: settings?.payment_expiry_minutes ?? 15,
       orderPrefix: settings?.order_prefix ?? 'ZBM',
     },

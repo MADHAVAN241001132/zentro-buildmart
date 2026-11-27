@@ -1,6 +1,6 @@
 import 'server-only';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
-import { checkCommerce } from '@/lib/services/entitlements';
+import { checkCommerce, isFeatureEnabled } from '@/lib/services/entitlements';
 import { paymentMode } from '@/lib/env';
 import { createRazorpayOrder } from '@/lib/payments/razorpay';
 import { classifyProviderFailure, safeProviderDetail } from '@/lib/payments/outcome';
@@ -78,7 +78,7 @@ export async function placeOrder(store: StoreInfo, session: GuestSession, input:
   // New guest orders need an active subscription or a current allowance (see 0031).
   const commerceBlocked = await checkCommerce(store.id);
   if (commerceBlocked) throw new CheckoutError(commerceBlocked);
-  if (input.method === 'online' && !store.paymentSettings.onlineEnabled) {
+  if (input.method === 'online' && (!store.paymentSettings.onlineEnabled || !(await isFeatureEnabled(store.id, 'online_payments')))) {
     throw new CheckoutError('Online payment is not available at this showroom');
   }
   if (input.method === 'cash' && !store.paymentSettings.cashEnabled) {
@@ -374,6 +374,9 @@ export async function getGuestOrder(storeId: string, sessionId: string, orderNum
  * user retry only in that state; any other state (including uncertain) is refused here and in the database.
  */
 export async function retryOnlinePayment(storeId: string, sessionId: string, orderNumber: string): Promise<void> {
+  if (!(await isFeatureEnabled(storeId, 'online_payments'))) {
+    throw new CheckoutError('Online payment is not available at this showroom');
+  }
   const order = await getGuestOrder(storeId, sessionId, orderNumber);
   if (!order) throw new CheckoutError('This order could not be found.');
   if (!order.paymentState.canRetry) throw new CheckoutError('A new payment cannot be started for this order right now.');

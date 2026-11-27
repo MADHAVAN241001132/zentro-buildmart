@@ -159,6 +159,7 @@ function Field({
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
         className={CONTROL}
+        suppressHydrationWarning
         {...props}
       />
       {error ? <p id={`${id}-error`} className="text-sm text-danger">{error}</p> : null}
@@ -183,6 +184,7 @@ function SelectField({
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id}-error` : undefined}
         className={CONTROL}
+        suppressHydrationWarning
         {...props}
       >
         {children}

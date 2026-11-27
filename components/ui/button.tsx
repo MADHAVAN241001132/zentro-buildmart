@@ -22,5 +22,5 @@ export function Button({
   className,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
-  return <button className={buttonClass(variant, className)} {...props} />;
+  return <button className={buttonClass(variant, className)} suppressHydrationWarning {...props} />;
 }

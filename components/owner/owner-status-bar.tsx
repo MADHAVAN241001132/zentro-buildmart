@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { StatusIndicator } from '@/components/realtime/status-indicator';
 import { useStatusPoll } from '@/components/realtime/use-status-poll';
 
@@ -15,7 +16,8 @@ interface OwnerCounts {
 
 /** Notification counts at the top of every owner page. Counts come from the owner's own store only. */
 export function OwnerStatusBar() {
-  const { state, data } = useStatusPoll<OwnerCounts>('/api/owner/status');
+  const router = useRouter();
+  const { state, data } = useStatusPoll<OwnerCounts>('/api/owner/status', () => router.refresh());
   const items: { label: string; value: number | null | undefined; href: string }[] = [
     { label: 'Incoming orders', value: data?.incomingOrders, href: '/owner/orders' },
     { label: 'Cash pending', value: data?.cashPending, href: '/owner/cash' },

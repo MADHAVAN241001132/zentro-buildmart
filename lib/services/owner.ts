@@ -1,7 +1,8 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { PermissionKey } from '@/lib/authz/permissions';
+import { isFeatureEnabled, type FeatureKey } from '@/lib/services/entitlements';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export interface OwnerContext {
@@ -99,4 +100,16 @@ export function routeDeniedResponse(error: unknown): NextResponse {
 /** Boolean form for code that must refuse one step rather than redirect (for example, one button or one result). */
 export async function hasOwnerPermission(storeId: string, permission: PermissionKey): Promise<boolean> {
   return (await loadMyStorePermissions(storeId)).includes(permission);
+}
+
+/**
+ * Gate for owner pages that are also controlled by a feature flag/assignment.
+ * Checks role permission (if specified) AND store feature availability. Calls notFound()
+ * when the feature is disabled/unassigned so the feature appears completely absent.
+ */
+export async function requireOwnerFeature(feature: FeatureKey, permission?: PermissionKey): Promise<OwnerContext> {
+  const owner = permission ? await requireOwnerPermission(permission) : await requireOwner();
+  const allowed = await isFeatureEnabled(owner.storeId, feature);
+  if (!allowed) notFound();
+  return owner;
 }

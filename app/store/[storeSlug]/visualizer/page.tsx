@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { RoomPhotoUploader } from '@/components/guest/room-photo-uploader';
 import { RoomVisualizer, type VisualizerPhoto, type VisualizerProduct } from '@/components/guest/room-visualizer';
 import { readGuestSession } from '@/lib/services/guest';
+import { isFeatureEnabled } from '@/lib/services/entitlements';
 import { listProjectOptions } from '@/lib/services/house-projects';
 import { guestRoomPhotos } from '@/lib/services/guest-photos';
 import { getProductDetailsByIds, getStoreBySlug, listProducts } from '@/lib/services/storefront';
@@ -12,13 +13,17 @@ export const dynamic = 'force-dynamic';
 
 /** Catalogue shown in the visualizer: public, in-store products with a price. */
 async function loadProducts(storeId: string): Promise<VisualizerProduct[]> {
-  const page = await listProducts(storeId, { pageSize: 60, sort: 'name' });
+  const page = await listProducts(storeId, { pageSize: 80, sort: 'name' });
   const details = await getProductDetailsByIds(storeId, page.items.map((p) => p.id));
   return details.map((d) => ({
     id: d.id,
     name: d.name,
     brand: d.brand,
     categoryName: d.categoryName,
+    application: d.application,
+    material: d.material,
+    colour: d.colour,
+    finish: d.finish,
     imageUrl: d.imageUrl,
     gstRateBps: d.gstRateBps,
     variants: d.variants.map((v) => ({
@@ -43,6 +48,12 @@ export default async function RoomVisualizerPage({
   const { notice, error } = await searchParams;
   const store = await getStoreBySlug(storeSlug);
   if (!store) notFound();
+  if (!(await isFeatureEnabled(store.id, 'room_visualiser'))) notFound();
+
+  const [canUseProjects, canUseQuotations] = await Promise.all([
+    isFeatureEnabled(store.id, 'house_project_planner'),
+    isFeatureEnabled(store.id, 'quotations'),
+  ]);
 
   let photos: VisualizerPhoto[] = [];
   let products: VisualizerProduct[] = [];
@@ -52,7 +63,9 @@ export default async function RoomVisualizerPage({
     const session = await readGuestSession(store.id, storeSlug);
     if (session) {
       photos = await guestRoomPhotos(store.id, session.id);
-      projects = await listProjectOptions(store.id, session.id);
+      if (canUseProjects) {
+        projects = await listProjectOptions(store.id, session.id);
+      }
     }
     products = await loadProducts(store.id);
   } catch {
@@ -62,12 +75,12 @@ export default async function RoomVisualizerPage({
 
   return (
     <div className="grid gap-8">
-      <header className="grid gap-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Visualizer</p>
-        <h1 className="font-display text-3xl text-burgundy">See tiles and fittings on your room</h1>
-        <p className="max-w-2xl text-sm text-ink-muted">
-          Upload a photograph of a room, then place products from this showroom on it. This is an approximate product preview, not a measured or photorealistic rendering.
-          Photographs are private to this browser session and are shown only to you.
+      <header className="grid gap-2 rounded-card border border-line bg-gradient-to-br from-burgundy-deep via-burgundy to-burgundy-deep p-6 text-cream shadow-rest">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">ZENTRO AI Visualizer</p>
+        <h1 className="font-display text-3xl sm:text-4xl">See It in Your Space Before You Buy.</h1>
+        <p className="max-w-2xl text-sm text-cream/85">
+          Upload your room, choose your favourite products and experience an AI-powered preview of your transformed space.
+          Photographs are stored privately for your session only.
         </p>
       </header>
 
@@ -97,7 +110,15 @@ export default async function RoomVisualizerPage({
             </ul>
           ) : null}
 
-          <RoomVisualizer storeSlug={storeSlug} photos={photos} products={products} projects={projects} submissionId={submissionId} />
+          <RoomVisualizer
+            storeSlug={storeSlug}
+            photos={photos}
+            products={products}
+            projects={projects}
+            submissionId={submissionId}
+            canUseProjects={canUseProjects}
+            canUseQuotations={canUseQuotations}
+          />
         </>
       )}
     </div>
