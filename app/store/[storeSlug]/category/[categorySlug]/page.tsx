@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ProductCard } from '@/components/guest/product-card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ScrollableSelect } from '@/components/ui/scrollable-select';
 import { currentLocale } from '@/lib/i18n/server';
 import { createTranslator } from '@/lib/i18n/translate';
 import { listCategories, listProducts, listStoreBrands, getStoreBySlug, type ProductQuery } from '@/lib/services/storefront';
@@ -97,19 +98,31 @@ export default async function CategoryPage({
           className="rounded-control border border-line bg-white px-3 py-2.5"
         />
         <label className="sr-only" htmlFor="brand">{t('catalogue.brandLabel')}</label>
-        <select id="brand" name="brand" defaultValue={activeBrand?.slug ?? ''} className="rounded-control border border-line bg-white px-3 py-2.5">
-          <option value="">{t('catalogue.allBrands')}</option>
-          {brands.map((brand) => (
-            <option key={brand.id} value={brand.slug}>{brand.name}</option>
-          ))}
-        </select>
+        <ScrollableSelect
+          id="brand"
+          name="brand"
+          defaultValue={activeBrand?.slug ?? ''}
+          ariaLabel={t('catalogue.brandLabel')}
+          className="md:min-w-[160px]"
+          options={[
+            { value: '', label: t('catalogue.allBrands') },
+            ...brands.map((brand) => ({ value: brand.slug, label: brand.name })),
+          ]}
+        />
         <label className="sr-only" htmlFor="sort">{t('catalogue.sortLabel')}</label>
-        <select id="sort" name="sort" defaultValue={query.sort} className="rounded-control border border-line bg-white px-3 py-2.5">
-          <option value="featured">{t('catalogue.sortFeatured')}</option>
-          <option value="price-asc">{t('catalogue.sortPriceAsc')}</option>
-          <option value="price-desc">{t('catalogue.sortPriceDesc')}</option>
-          <option value="name">{t('catalogue.sortName')}</option>
-        </select>
+        <ScrollableSelect
+          id="sort"
+          name="sort"
+          defaultValue={query.sort}
+          ariaLabel={t('catalogue.sortLabel')}
+          className="md:min-w-[160px]"
+          options={[
+            { value: 'featured', label: t('catalogue.sortFeatured') },
+            { value: 'price-asc', label: t('catalogue.sortPriceAsc') },
+            { value: 'price-desc', label: t('catalogue.sortPriceDesc') },
+            { value: 'name', label: t('catalogue.sortName') },
+          ]}
+        />
         <label className="flex items-center gap-2 px-2 text-sm font-medium">
           <input type="checkbox" name="stock" value="1" defaultChecked={query.inStockOnly} className="accent-burgundy" />
           {t('catalogue.inStockOnly')}

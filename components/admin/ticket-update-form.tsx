@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from 'react';
 import { TICKET_PRIORITIES, TICKET_STATUSES } from '@/lib/validation/admin';
+import { ScrollableSelect } from '@/components/ui/scrollable-select';
 import { updateTicketAction, type TicketUpdateState } from '@/app/admin/(portal)/support/actions';
 
 const INITIAL: TicketUpdateState = { ok: false };
@@ -31,29 +32,27 @@ export function TicketUpdateForm({
     <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="ticketId" value={ticketId} />
       <label className="sr-only" htmlFor={`s-${ticketId}`}>Status</label>
-      <select
+      <ScrollableSelect
         id={`s-${ticketId}`}
         name="status"
         value={status}
-        onChange={(e) => setStatus(e.target.value)}
-        className="min-h-[38px] rounded-control border border-line bg-white px-2.5 py-1.5 text-xs sm:text-sm"
-      >
-        {TICKET_STATUSES.map((s) => (
-          <option key={s} value={s}>{s.replace('_', ' ')}</option>
-        ))}
-      </select>
+        onValueChange={setStatus}
+        ariaLabel="Ticket status"
+        className="min-w-[130px]"
+        buttonClassName="min-h-[38px] px-2.5 py-1.5 text-xs sm:text-sm"
+        options={TICKET_STATUSES.map((s) => ({ value: s, label: s.replace('_', ' ') }))}
+      />
       <label className="sr-only" htmlFor={`p-${ticketId}`}>Priority</label>
-      <select
+      <ScrollableSelect
         id={`p-${ticketId}`}
         name="priority"
         value={priority}
-        onChange={(e) => setPriority(e.target.value)}
-        className="min-h-[38px] rounded-control border border-line bg-white px-2.5 py-1.5 text-xs sm:text-sm"
-      >
-        {TICKET_PRIORITIES.map((p) => (
-          <option key={p} value={p}>{p}</option>
-        ))}
-      </select>
+        onValueChange={setPriority}
+        ariaLabel="Ticket priority"
+        className="min-w-[110px]"
+        buttonClassName="min-h-[38px] px-2.5 py-1.5 text-xs sm:text-sm"
+        options={TICKET_PRIORITIES.map((p) => ({ value: p, label: p }))}
+      />
       <button
         type="submit"
         disabled={pending}

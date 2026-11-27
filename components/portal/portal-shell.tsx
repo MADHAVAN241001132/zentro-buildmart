@@ -180,8 +180,8 @@ export function PortalShell({
             <Link href={portalBase} onClick={() => router.refresh()} className="flex min-w-0 items-center gap-2.5">
               <ZentroLogo size={32} className="rounded-md" />
               <div className="min-w-0">
-                <p className="truncate font-display text-base leading-tight text-gold">{portalTitle}</p>
-                {portalSubtitle ? <p className="truncate text-[11px] text-cream/75">{portalSubtitle}</p> : null}
+                <p className="break-words font-display text-sm leading-tight text-gold sm:text-base">{portalTitle}</p>
+                {portalSubtitle ? <p className="break-words text-[11px] leading-tight text-cream/75">{portalSubtitle}</p> : null}
               </div>
             </Link>
           </div>

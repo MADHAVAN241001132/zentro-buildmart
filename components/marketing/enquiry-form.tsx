@@ -7,6 +7,7 @@ import {
   type EnquiryFormState,
 } from '@/app/actions/enquiry';
 import type { PublicSubscriptionPlan } from '@/components/marketing/pricing-solutions';
+import { ScrollableSelect } from '@/components/ui/scrollable-select';
 import { formatINR } from '@/lib/money';
 import {
   Sparkles,
@@ -272,18 +273,16 @@ export function MarketingEnquiryForm({ plans = [] }: { plans?: PublicSubscriptio
                     <label htmlFor="businessType" className="block text-xs font-bold uppercase tracking-wider text-[#6A0D2A]">
                       Business Type <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <ScrollableSelect
                       id="businessType"
                       name="businessType"
                       required
                       defaultValue=""
-                      className="mt-1.5 w-full rounded-xl border border-[#E6D5C3] bg-white px-3.5 py-2.5 text-xs text-[#3B2529] focus:border-[#6A0D2A] focus:ring-1 focus:ring-[#6A0D2A] outline-none"
-                    >
-                      <option value="" disabled>Select business type...</option>
-                      {BUSINESS_TYPES.map((bt) => (
-                        <option key={bt} value={bt}>{bt}</option>
-                      ))}
-                    </select>
+                      placeholder="Select business type..."
+                      className="mt-1.5"
+                      buttonClassName="rounded-xl border-[#E6D5C3] px-3.5 py-2.5 text-xs"
+                      options={BUSINESS_TYPES.map((bt) => ({ value: bt, label: bt }))}
+                    />
                     {state.errors?.businessType && (
                       <p className="mt-1 text-[11px] text-red-600">{state.errors.businessType[0]}</p>
                     )}
@@ -293,17 +292,15 @@ export function MarketingEnquiryForm({ plans = [] }: { plans?: PublicSubscriptio
                     <label htmlFor="storeCount" className="block text-xs font-bold uppercase tracking-wider text-[#6A0D2A]">
                       Number of Stores <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <ScrollableSelect
                       id="storeCount"
                       name="storeCount"
                       required
                       defaultValue="1 Showroom / Store"
-                      className="mt-1.5 w-full rounded-xl border border-[#E6D5C3] bg-white px-3.5 py-2.5 text-xs text-[#3B2529] focus:border-[#6A0D2A] focus:ring-1 focus:ring-[#6A0D2A] outline-none"
-                    >
-                      {STORE_COUNTS.map((sc) => (
-                        <option key={sc} value={sc}>{sc}</option>
-                      ))}
-                    </select>
+                      className="mt-1.5"
+                      buttonClassName="rounded-xl border-[#E6D5C3] px-3.5 py-2.5 text-xs"
+                      options={STORE_COUNTS.map((sc) => ({ value: sc, label: sc }))}
+                    />
                     {state.errors?.storeCount && (
                       <p className="mt-1 text-[11px] text-red-600">{state.errors.storeCount[0]}</p>
                     )}
@@ -370,20 +367,21 @@ export function MarketingEnquiryForm({ plans = [] }: { plans?: PublicSubscriptio
                     <label htmlFor="selectedPlanId" className="block text-xs font-bold uppercase tracking-wider text-[#6A0D2A]">
                       Interested Subscription Plan
                     </label>
-                    <select
+                    <ScrollableSelect
                       id="selectedPlanId"
                       name="selectedPlanId"
                       value={selectedPlanId}
-                      onChange={(e) => setSelectedPlanId(e.target.value)}
-                      className="mt-1.5 w-full rounded-xl border border-[#E6D5C3] bg-white px-3.5 py-2.5 text-xs text-[#3B2529] focus:border-[#6A0D2A] focus:ring-1 focus:ring-[#6A0D2A] outline-none"
-                    >
-                      <option value="">Undecided / Custom Consultation</option>
-                      {plans.map((pl) => (
-                        <option key={pl.id} value={pl.id}>
-                          {pl.name} ({formatINR(pl.price_paise)} / {pl.billing_interval === 'annual' ? 'year' : 'month'})
-                        </option>
-                      ))}
-                    </select>
+                      onValueChange={setSelectedPlanId}
+                      className="mt-1.5"
+                      buttonClassName="rounded-xl border-[#E6D5C3] px-3.5 py-2.5 text-xs"
+                      options={[
+                        { value: '', label: 'Undecided / Custom Consultation' },
+                        ...plans.map((pl) => ({
+                          value: pl.id,
+                          label: `${pl.name} (${formatINR(pl.price_paise)} / ${pl.billing_interval === 'annual' ? 'year' : 'month'})`,
+                        })),
+                      ]}
+                    />
                   </div>
                 </div>
 

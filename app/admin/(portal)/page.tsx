@@ -9,6 +9,7 @@ import { requireAdmin } from '@/lib/services/admin';
 import { DashboardError, dashboardStoreOptions, loadAdminDashboard, type AdminDashboard } from '@/lib/services/admin-dashboard';
 import { loadPlatformQrAnalytics } from '@/lib/services/qr-analytics';
 import { formatIST, formatISTDate } from '@/lib/format-ist';
+import { ScrollableSelect } from '@/components/ui/scrollable-select';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,11 +33,13 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
     <form method="get" className="flex flex-wrap items-end gap-3" aria-label="Dashboard filters">
       <label className="grid min-w-0 flex-1 basis-36 gap-1 text-xs text-ink-muted sm:flex-none">
         Period
-        <select name="preset" defaultValue={preset} className="w-full min-w-0 rounded-control border border-line bg-cream px-3 py-2 text-sm text-ink">
-          {DATE_PRESETS.map((p) => (
-            <option key={p} value={p}>{PRESET_LABEL[p]}</option>
-          ))}
-        </select>
+        <ScrollableSelect
+          name="preset"
+          defaultValue={preset}
+          ariaLabel="Period"
+          buttonClassName="bg-cream py-2"
+          options={DATE_PRESETS.map((p) => ({ value: p, label: PRESET_LABEL[p] }))}
+        />
       </label>
       <label className="grid min-w-0 flex-1 basis-36 gap-1 text-xs text-ink-muted sm:flex-none">
         From
@@ -48,12 +51,13 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
       </label>
       <label className="grid min-w-0 flex-1 basis-44 gap-1 text-xs text-ink-muted sm:flex-none">
         Store
-        <select name="store" defaultValue={storeId ?? ''} className="w-full min-w-0 rounded-control border border-line bg-cream px-3 py-2 text-sm text-ink">
-          <option value="">All stores</option>
-          {stores.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
+        <ScrollableSelect
+          name="store"
+          defaultValue={storeId ?? ''}
+          ariaLabel="Store"
+          buttonClassName="bg-cream py-2"
+          options={[{ value: '', label: 'All stores' }, ...stores.map((s) => ({ value: s.id, label: s.name }))]}
+        />
       </label>
       <button type="submit" className="min-h-[40px] rounded-control bg-burgundy px-4 py-2 text-sm text-cream">Apply</button>
     </form>

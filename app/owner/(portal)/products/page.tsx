@@ -6,6 +6,7 @@ import { requireOwnerPermission } from '@/lib/services/owner';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { parseProductFilters } from './product-filters';
 import { ProductViewContainer, type ProductItem } from '@/components/owner/product-view-container';
+import { ScrollableSelect } from '@/components/ui/scrollable-select';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,21 +67,39 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
         <label className="sr-only" htmlFor="q">Search products</label>
         <input id="q" name="q" defaultValue={filters.q ?? ''} placeholder="Search name, SKU or model" className="w-full min-w-0 rounded-control border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-burgundy" />
         <label className="sr-only" htmlFor="category">Category</label>
-        <select id="category" name="category" defaultValue={filters.category ?? ''} className="w-full min-w-0 rounded-control border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-burgundy">
-          <option value="">All categories</option>
-          {(categories ?? []).map((c) => <option key={c.id as string} value={c.id as string}>{c.name as string}</option>)}
-        </select>
+        <ScrollableSelect
+          id="category"
+          name="category"
+          defaultValue={filters.category ?? ''}
+          ariaLabel="Category"
+          options={[
+            { value: '', label: 'All categories' },
+            ...(categories ?? []).map((c) => ({ value: c.id as string, label: c.name as string })),
+          ]}
+        />
         <label className="sr-only" htmlFor="brand">Brand</label>
-        <select id="brand" name="brand" defaultValue={filters.brand ?? ''} className="w-full min-w-0 rounded-control border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-burgundy">
-          <option value="">All brands</option>
-          {(brands ?? []).map((b) => <option key={b.id as string} value={b.id as string}>{b.name as string}</option>)}
-        </select>
+        <ScrollableSelect
+          id="brand"
+          name="brand"
+          defaultValue={filters.brand ?? ''}
+          ariaLabel="Brand"
+          options={[
+            { value: '', label: 'All brands' },
+            ...(brands ?? []).map((b) => ({ value: b.id as string, label: b.name as string })),
+          ]}
+        />
         <label className="sr-only" htmlFor="status">Status</label>
-        <select id="status" name="status" defaultValue={filters.status ?? ''} className="w-full min-w-0 rounded-control border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-burgundy">
-          <option value="">Active and archived</option>
-          <option value="active">Active</option>
-          <option value="archived">Archived</option>
-        </select>
+        <ScrollableSelect
+          id="status"
+          name="status"
+          defaultValue={filters.status ?? ''}
+          ariaLabel="Status"
+          options={[
+            { value: '', label: 'Active and archived' },
+            { value: 'active', label: 'Active' },
+            { value: 'archived', label: 'Archived' },
+          ]}
+        />
         <button type="submit" className="min-h-[44px] w-full rounded-control bg-burgundy px-5 py-2.5 text-sm font-semibold text-cream transition-colors hover:bg-burgundy-deep md:w-auto">Apply</button>
       </form>
 

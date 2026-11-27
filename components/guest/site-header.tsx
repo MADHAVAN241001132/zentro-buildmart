@@ -62,27 +62,29 @@ export function SiteHeader({
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-line bg-cream/95 backdrop-blur">
-        <div className="mx-auto flex max-w-content items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
-          <Link href={base} className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
-            {logoUrl ? (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-control border border-line bg-white/95 p-1 shadow-xs sm:h-11 sm:w-11">
-                <img
-                  src={logoUrl}
-                  alt={`${storeName} Logo`}
-                  className="h-full w-full object-contain"
-                  loading="eager"
-                />
+        <div className="mx-auto flex max-w-content flex-col gap-2 px-3 py-2.5 md:flex-row md:items-center md:justify-between md:gap-4 md:px-6 md:py-3">
+          <div className="flex items-center justify-between gap-2 md:min-w-0 md:flex-1">
+            <Link href={base} className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
+              {logoUrl ? (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-control border border-line bg-white/95 p-1 shadow-xs sm:h-11 sm:w-11">
+                  <img
+                    src={logoUrl}
+                    alt={`${storeName} Logo`}
+                    className="h-full w-full object-contain"
+                    loading="eager"
+                  />
+                </div>
+              ) : (
+                <ZentroLogo size={40} alt={`${storeName} Logo`} className="rounded-control shadow-xs sm:h-11 sm:w-11" />
+              )}
+              <div className="flex min-w-0 flex-col">
+                <span className="break-words font-display text-sm leading-snug text-burgundy sm:text-base md:text-lg">{storeName}</span>
+                <span className="break-words text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
+                  Powered by ZENTRO BuildMart
+                </span>
               </div>
-            ) : (
-              <ZentroLogo size={40} alt={`${storeName} Logo`} className="rounded-control shadow-xs sm:h-11 sm:w-11" />
-            )}
-            <div className="flex min-w-0 flex-col">
-              <span className="line-clamp-1 font-display text-base leading-tight text-burgundy sm:text-lg">{storeName}</span>
-              <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
-                Powered by ZENTRO BuildMart
-              </span>
-            </div>
-          </Link>
+            </Link>
+          </div>
 
           <nav aria-label={t('nav.home')} className="hidden items-center gap-5 text-sm font-medium text-ink md:flex">
             <Link href={`${base}/category/all`} className={`hover:text-burgundy ${isActive(`${base}/category`) ? 'font-semibold text-burgundy' : ''}`}>
@@ -106,7 +108,7 @@ export function SiteHeader({
             ) : null}
           </nav>
 
-          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <div className="flex shrink-0 items-center justify-end gap-1.5 border-t border-line/60 pt-1.5 md:border-t-0 md:pt-0 sm:gap-2">
             <Suspense fallback={null}>
               <LanguageSwitcher current={locale} />
             </Suspense>
