@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import {
   Calculator,
@@ -42,6 +42,7 @@ export function SiteHeader({
   showProjects?: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
   const base = `/store/${storeSlug}`;
   const t = (key: Parameters<typeof translate>[1], vars?: Record<string, string | number>) => translate(locale, key, vars);
@@ -62,29 +63,34 @@ export function SiteHeader({
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-line bg-cream/95 backdrop-blur">
-        <div className="mx-auto flex max-w-content flex-col gap-2 px-3 py-2.5 md:flex-row md:items-center md:justify-between md:gap-4 md:px-6 md:py-3">
-          <div className="flex items-center justify-between gap-2 md:min-w-0 md:flex-1">
-            <Link href={base} className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-3">
-              {logoUrl ? (
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-control border border-line bg-white/95 p-1 shadow-xs sm:h-11 sm:w-11">
-                  <img
-                    src={logoUrl}
-                    alt={`${storeName} Logo`}
-                    className="h-full w-full object-contain"
-                    loading="eager"
-                  />
-                </div>
-              ) : (
-                <ZentroLogo size={40} alt={`${storeName} Logo`} className="rounded-control shadow-xs sm:h-11 sm:w-11" />
-              )}
-              <div className="flex min-w-0 flex-col">
-                <span className="break-words font-display text-sm leading-snug text-burgundy sm:text-base md:text-lg">{storeName}</span>
-                <span className="break-words text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
-                  Powered by ZENTRO BuildMart
-                </span>
+        <div className="mx-auto flex max-w-content items-center justify-between gap-2 px-3 py-2 md:gap-4 md:px-6 md:py-3">
+          <Link
+            href={base}
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              router.refresh();
+            }}
+            className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3"
+          >
+            {logoUrl ? (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-control border border-line bg-white/95 p-0.5 shadow-xs sm:h-10 sm:w-10 md:h-11 md:w-11 md:p-1">
+                <img
+                  src={logoUrl}
+                  alt={`${storeName} Logo`}
+                  className="h-full w-full object-contain"
+                  loading="eager"
+                />
               </div>
-            </Link>
-          </div>
+            ) : (
+              <ZentroLogo size={38} alt={`${storeName} Logo`} className="rounded-control shadow-xs sm:h-10 sm:w-10 md:h-11 md:w-11" />
+            )}
+            <div className="flex min-w-0 flex-col">
+              <span className="break-words font-display text-[13px] leading-tight text-burgundy sm:text-base md:text-lg">{storeName}</span>
+              <span className="break-words text-[9.5px] font-semibold uppercase leading-tight tracking-wider text-ink-muted sm:text-[10px]">
+                Powered by ZENTRO BuildMart
+              </span>
+            </div>
+          </Link>
 
           <nav aria-label={t('nav.home')} className="hidden items-center gap-5 text-sm font-medium text-ink md:flex">
             <Link href={`${base}/category/all`} className={`hover:text-burgundy ${isActive(`${base}/category`) ? 'font-semibold text-burgundy' : ''}`}>
@@ -108,14 +114,14 @@ export function SiteHeader({
             ) : null}
           </nav>
 
-          <div className="flex shrink-0 items-center justify-end gap-1.5 border-t border-line/60 pt-1.5 md:border-t-0 md:pt-0 sm:gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <Suspense fallback={null}>
               <LanguageSwitcher current={locale} />
             </Suspense>
             <Link
               href={`${base}/wishlist`}
               aria-label={counted(t('nav.wishlist'), wishlistCount)}
-              className={`relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-control p-2 hover:bg-card ${
+              className={`relative inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-control p-1.5 hover:bg-card md:min-h-[44px] md:min-w-[44px] md:p-2 ${
                 isActive(`${base}/wishlist`) ? 'text-burgundy' : 'text-ink'
               }`}
             >
