@@ -6,7 +6,7 @@
   "crons": [
     {
       "path": "/api/cron/expire-payments",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/storage-orphans",
