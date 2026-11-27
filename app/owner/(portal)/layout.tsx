@@ -76,7 +76,7 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
   })).filter((group) => group.items.length > 0);
 
   return (
-    <div className="min-h-screen bg-cream lg:grid lg:grid-cols-[248px_1fr]">
+    <div className="min-h-screen overflow-x-clip bg-cream lg:grid lg:grid-cols-[248px_1fr]">
       <aside className="border-b border-line bg-gradient-to-b from-burgundy-deep to-burgundy-deep/95 text-cream lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0">
         <div className="flex items-center justify-between gap-3 border-b border-cream/10 p-5">
           <div className="min-w-0">

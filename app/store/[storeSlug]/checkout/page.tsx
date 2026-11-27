@@ -33,12 +33,12 @@ export default async function CheckoutPage({ params }: { params: Promise<{ store
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_380px] lg:items-start">
-      <section className="grid gap-6">
+      <section className="grid min-w-0 gap-6">
         <div className="grid gap-4">
           <Link href={`/store/${storeSlug}/cart`} className="w-fit text-sm font-semibold text-burgundy hover:underline">← Back to cart</Link>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <h1 className="font-display text-3xl text-burgundy sm:text-4xl">Checkout</h1>
-            <ol aria-label="Checkout progress" className="flex items-center gap-2 text-xs font-semibold text-ink-muted">
+            <ol aria-label="Checkout progress" className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-muted">
               <li className="rounded-full bg-cream px-3 py-1 text-ink-muted">Cart</li>
               <li aria-hidden="true" className="h-px w-4 bg-line" />
               <li aria-current="step" className="rounded-full bg-burgundy px-3 py-1 text-cream">Checkout</li>

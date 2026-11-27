@@ -63,7 +63,7 @@ export default async function CategoryPage({
   };
 
   return (
-    <div className="grid gap-6">
+    <div className="grid min-w-0 gap-6">
       <nav aria-label={t('common.breadcrumb')} className="text-sm text-ink-muted">
         <Link href={`/store/${storeSlug}`} className="hover:text-burgundy">{t('common.home')}</Link>
         <span className="mx-2">/</span>

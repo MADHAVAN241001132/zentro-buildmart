@@ -12,14 +12,14 @@ export function LoginForm() {
   const errors = state.fieldErrors ?? {};
   return (
     <form action={formAction} className="grid gap-4 rounded-card border border-line bg-card p-6" noValidate>
-      <label className="grid gap-1.5 text-sm font-medium">
+      <label className="grid min-w-0 gap-1.5 text-sm font-medium">
         Email
-        <input name="email" type="email" autoComplete="username" required className="rounded-control border border-line bg-white px-3 py-2.5 font-normal" suppressHydrationWarning />
+        <input name="email" type="email" autoComplete="username" required className="w-full min-w-0 rounded-control border border-line bg-white px-3 py-2.5 font-normal" suppressHydrationWarning />
         {errors.email ? <span className="text-sm text-danger">{errors.email}</span> : null}
       </label>
-      <label className="grid gap-1.5 text-sm font-medium">
+      <label className="grid min-w-0 gap-1.5 text-sm font-medium">
         Password
-        <input name="password" type="password" autoComplete="current-password" required className="rounded-control border border-line bg-white px-3 py-2.5 font-normal" suppressHydrationWarning />
+        <input name="password" type="password" autoComplete="current-password" required className="w-full min-w-0 rounded-control border border-line bg-white px-3 py-2.5 font-normal" suppressHydrationWarning />
         {errors.password ? <span className="text-sm text-danger">{errors.password}</span> : null}
       </label>
       <FormMessage ok={state.ok} message={state.message} />

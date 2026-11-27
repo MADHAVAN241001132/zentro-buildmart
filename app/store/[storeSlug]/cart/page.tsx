@@ -43,7 +43,7 @@ export default async function CartPage({ params }: { params: Promise<{ storeSlug
   const couponLabel = cart.coupon?.code ? t('cart.coupon', { code: cart.coupon.code }) : t('cart.discount');
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
-      <section className="grid gap-4">
+      <section className="grid min-w-0 gap-4">
         <h1 className="font-display text-3xl text-burgundy">{t('cart.title')}</h1>
         <ul className="grid gap-4">
           {cart.lines.map((line) => {

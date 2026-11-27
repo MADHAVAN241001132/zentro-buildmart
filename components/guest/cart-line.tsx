@@ -59,21 +59,21 @@ export function CartLine(props: CartLineProps) {
           <FormMessage ok={message?.ok ?? null} message={message?.message} />
         </div>
       </div>
-      <div className="flex items-center justify-between gap-4 sm:justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2 sm:flex-nowrap sm:justify-end sm:gap-4">
         <div className="flex items-center rounded-control border border-line" role="group" aria-label={t('line.quantity')}>
           <button
             type="button"
-            className="px-3 py-2 text-lg disabled:opacity-40"
+            className="min-h-[44px] min-w-[44px] px-3 py-2 text-lg disabled:opacity-40"
             onClick={() => save(quantity - 1)}
             disabled={pending || quantity <= 1}
             aria-label={t('line.decrease')}
           >
             −
           </button>
-          <span className="min-w-10 text-center font-semibold" aria-live="polite">{quantity}</span>
+          <span className="min-w-9 text-center font-semibold" aria-live="polite">{quantity}</span>
           <button
             type="button"
-            className="px-3 py-2 text-lg disabled:opacity-40"
+            className="min-h-[44px] min-w-[44px] px-3 py-2 text-lg disabled:opacity-40"
             onClick={() => save(quantity + 1)}
             disabled={pending || quantity >= props.availableUnits}
             aria-label={t('line.increase')}
@@ -81,13 +81,13 @@ export function CartLine(props: CartLineProps) {
             +
           </button>
         </div>
-        <p className="w-28 text-right font-semibold text-ink">{formatINR(props.lineTotalPaise)}</p>
+        <p className="text-right font-semibold tabular-nums text-ink sm:w-28">{formatINR(props.lineTotalPaise)}</p>
         <button
           type="button"
           onClick={remove}
           disabled={pending}
           aria-label={t('line.remove', { name: props.productName })}
-          className="rounded-control p-2 text-danger hover:bg-danger/10 disabled:opacity-40"
+          className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-control p-2 text-danger hover:bg-danger/10 disabled:opacity-40"
         >
           <Trash2 className="h-4 w-4" aria-hidden />
         </button>

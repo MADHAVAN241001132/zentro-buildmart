@@ -5,7 +5,7 @@ import { formatINR } from '@/lib/money';
 
 export function Section({ id, title, note, children }: { id: string; title: string; note?: string; children: ReactNode }) {
   return (
-    <section aria-labelledby={id} className="grid gap-4">
+    <section aria-labelledby={id} className="grid min-w-0 gap-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <h2 id={id} className="font-display text-2xl text-burgundy">{title}</h2>
         {note && <p className="max-w-prose text-xs text-ink-muted">{note}</p>}
@@ -74,7 +74,7 @@ export function BarTrend({ rows, label, value, format }: { rows: { key: string; 
 
 export function Table({ headers, children, empty }: { headers: string[]; children: ReactNode; empty?: string }) {
   return (
-    <div className="overflow-x-auto rounded-card border border-line bg-card">
+    <div className="w-full max-w-full overflow-x-auto rounded-card border border-line bg-card">
       <table className="min-w-full text-sm">
         <thead className="bg-cream text-left text-xs uppercase tracking-wide text-ink-muted">
           <tr>

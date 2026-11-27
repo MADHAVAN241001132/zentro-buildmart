@@ -29,32 +29,32 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
 
   const filters = (
     <form method="get" className="flex flex-wrap items-end gap-3" aria-label="Dashboard filters">
-      <label className="grid gap-1 text-xs text-ink-muted">
+      <label className="grid min-w-0 flex-1 basis-36 gap-1 text-xs text-ink-muted sm:flex-none">
         Period
-        <select name="preset" defaultValue={preset} className="rounded-control border border-line bg-cream px-3 py-2 text-sm text-ink">
+        <select name="preset" defaultValue={preset} className="w-full min-w-0 rounded-control border border-line bg-cream px-3 py-2 text-sm text-ink">
           {DATE_PRESETS.map((p) => (
             <option key={p} value={p}>{PRESET_LABEL[p]}</option>
           ))}
         </select>
       </label>
-      <label className="grid gap-1 text-xs text-ink-muted">
+      <label className="grid min-w-0 flex-1 basis-36 gap-1 text-xs text-ink-muted sm:flex-none">
         From
-        <input type="date" name="from" defaultValue={custom?.from} className="rounded-control border border-line bg-cream px-3 py-2 text-sm text-ink" />
+        <input type="date" name="from" defaultValue={custom?.from} className="w-full min-w-0 rounded-control border border-line bg-cream px-3 py-2 text-sm text-ink" />
       </label>
-      <label className="grid gap-1 text-xs text-ink-muted">
+      <label className="grid min-w-0 flex-1 basis-36 gap-1 text-xs text-ink-muted sm:flex-none">
         To
-        <input type="date" name="to" defaultValue={custom?.to} className="rounded-control border border-line bg-cream px-3 py-2 text-sm text-ink" />
+        <input type="date" name="to" defaultValue={custom?.to} className="w-full min-w-0 rounded-control border border-line bg-cream px-3 py-2 text-sm text-ink" />
       </label>
-      <label className="grid gap-1 text-xs text-ink-muted">
+      <label className="grid min-w-0 flex-1 basis-44 gap-1 text-xs text-ink-muted sm:flex-none">
         Store
-        <select name="store" defaultValue={storeId ?? ''} className="rounded-control border border-line bg-cream px-3 py-2 text-sm text-ink">
+        <select name="store" defaultValue={storeId ?? ''} className="w-full min-w-0 rounded-control border border-line bg-cream px-3 py-2 text-sm text-ink">
           <option value="">All stores</option>
           {stores.map((s) => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
       </label>
-      <button type="submit" className="rounded-control bg-burgundy px-4 py-2 text-sm text-cream">Apply</button>
+      <button type="submit" className="min-h-[40px] rounded-control bg-burgundy px-4 py-2 text-sm text-cream">Apply</button>
     </form>
   );
 
@@ -117,7 +117,7 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
   const planMax = Math.max(0, ...subs.plan_distribution.map((p) => p.count));
 
   return (
-    <div className="grid gap-10">
+    <div className="grid min-w-0 gap-10">
       {header}
       {filters}
       <div className="grid gap-3">

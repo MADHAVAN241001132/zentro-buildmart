@@ -23,7 +23,7 @@ export default async function StoreHome({ params }: { params: Promise<{ storeSlu
 
   return (
     <div className="flex flex-col gap-12">
-      <section className="relative grid gap-6 overflow-hidden rounded-card bg-gradient-to-br from-burgundy-deep via-burgundy to-burgundy-deep px-6 py-8 text-cream shadow-hover md:grid-cols-[1.15fr_1fr] md:items-center md:gap-8 md:px-10 md:py-12">
+      <section className="relative grid gap-6 overflow-hidden rounded-card bg-gradient-to-br from-burgundy-deep via-burgundy to-burgundy-deep px-4 py-6 text-cream shadow-hover sm:px-6 sm:py-8 md:grid-cols-[1.15fr_1fr] md:items-center md:gap-8 md:px-10 md:py-12">
         <div className="grid gap-4">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gold">{t('home.eyebrow')}</p>
           <h1 className="font-display text-3xl leading-tight [overflow-wrap:anywhere] sm:text-4xl lg:text-5xl">{t('home.welcome', { name: store.name })}</h1>
@@ -31,10 +31,10 @@ export default async function StoreHome({ params }: { params: Promise<{ storeSlu
           {store.businessDescription ? <p className="max-w-2xl text-cream/85">{store.businessDescription}</p> : null}
           <p className="max-w-xl text-cream/80">{t('home.intro')}</p>
           <div className="flex flex-wrap gap-3 pt-2">
-            <Link href={`/store/${storeSlug}/category/all`} className="rounded-control bg-gold px-5 py-2.5 text-sm font-semibold text-burgundy-deep transition hover:brightness-105">
+            <Link href={`/store/${storeSlug}/category/all`} className="inline-flex min-h-[44px] items-center justify-center rounded-control bg-gold px-5 py-2.5 text-sm font-semibold text-burgundy-deep transition hover:brightness-105">
               {t('home.browse')}
             </Link>
-            <Link href={`/store/${storeSlug}/tools/tile-calculator`} className="rounded-control border border-cream/40 px-5 py-2.5 text-sm font-semibold text-cream transition hover:bg-cream/10">
+            <Link href={`/store/${storeSlug}/tools/tile-calculator`} className="inline-flex min-h-[44px] items-center justify-center rounded-control border border-cream/40 px-5 py-2.5 text-sm font-semibold text-cream transition hover:bg-cream/10">
               {t('home.tileCalculator')}
             </Link>
           </div>
@@ -106,8 +106,8 @@ export default async function StoreHome({ params }: { params: Promise<{ storeSlu
                       fallback={<span aria-hidden="true" className="block aspect-[16/9] w-full bg-burgundy" />}
                     />
                   ) : null}
-                  <span className="p-5 pb-0 font-display text-lg text-ink [overflow-wrap:anywhere]">{category.name}</span>
-                  <span className="mt-4 p-5 pt-0 text-sm text-ink-muted">{t('home.productCount', { count: category.productCount })}</span>
+                  <span className="p-3.5 pb-0 font-display text-base text-ink [overflow-wrap:anywhere] sm:p-5 sm:pb-0 sm:text-lg">{category.name}</span>
+                  <span className="mt-2 p-3.5 pt-0 text-xs text-ink-muted sm:mt-4 sm:p-5 sm:pt-0 sm:text-sm">{t('home.productCount', { count: category.productCount })}</span>
                 </Link>
               </li>
             ))}

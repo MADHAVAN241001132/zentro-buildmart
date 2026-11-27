@@ -25,7 +25,7 @@ const NAV = [
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const admin = await requireAdmin();
   return (
-    <div className="min-h-screen bg-cream lg:grid lg:grid-cols-[15rem_1fr]">
+    <div className="min-h-screen overflow-x-clip bg-cream lg:grid lg:grid-cols-[15rem_1fr]">
       <aside className="border-b border-line bg-gradient-to-b from-burgundy to-burgundy-deep px-4 py-4 text-cream lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:px-5 lg:py-6">
         <p className="font-display text-xl">ZENTRO Admin</p>
         <p className="mt-1 truncate text-xs text-cream/70">{admin.email}</p>

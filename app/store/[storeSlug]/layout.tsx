@@ -26,7 +26,7 @@ export default async function StoreLayout({ children, params }: { children: Reac
   ]);
 
   return (
-    <div className="min-h-screen bg-cream" style={{ ['--store-brand' as string]: store.brandColour }}>
+    <div className="min-h-screen overflow-x-clip bg-cream" style={{ ['--store-brand' as string]: store.brandColour }}>
       <StoreFeatureSync storeSlug={storeSlug} />
       <SiteHeader
         storeSlug={storeSlug}

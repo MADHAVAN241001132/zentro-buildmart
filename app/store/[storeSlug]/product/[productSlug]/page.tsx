@@ -35,13 +35,13 @@ export default async function ProductPage({
   const save = selected.mrpPaise && selected.mrpPaise > selected.salePricePaise ? selected.mrpPaise - selected.salePricePaise : 0;
 
   return (
-    <div className="grid gap-12">
-      <nav aria-label="Breadcrumb" className="text-sm text-ink-muted">
+    <div className="grid min-w-0 gap-12">
+      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-muted">
         <Link href={`/store/${storeSlug}`} className="hover:text-burgundy">Home</Link>
-        <span className="mx-2">/</span>
+        <span>/</span>
         <Link href={`/store/${storeSlug}/category/${product.categorySlug}`} className="hover:text-burgundy">{product.categoryName}</Link>
-        <span className="mx-2">/</span>
-        <span className="text-ink">{product.name}</span>
+        <span>/</span>
+        <span className="text-ink [overflow-wrap:anywhere]">{product.name}</span>
       </nav>
 
       <div className="grid gap-8 lg:grid-cols-2">
@@ -49,7 +49,7 @@ export default async function ProductPage({
           <ProductGallery photos={product.photos} name={product.name} category={product.categoryName} />
         </div>
 
-        <div className="flex flex-col gap-5 lg:sticky lg:top-24 lg:self-start">
+        <div className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-24 lg:self-start">
           {product.brand ? <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">{product.brand}</p> : null}
           <h1 className="font-display text-3xl leading-tight text-burgundy sm:text-4xl">{product.name}</h1>
           <p className="text-sm text-ink-muted">SKU {selected.sku}</p>
