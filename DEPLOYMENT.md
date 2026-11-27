@@ -37,7 +37,7 @@ Configure these in **Vercel → Project Settings → Environment Variables** (ne
 - **Root Directory:** `zentro-buildmart` (if repository root is the parent folder) or `./` (if `zentro-buildmart` is the repo root)
 - **Node.js Version:** `20.x` or `22.x` (`engines.node >= 20.18.0`)
 - **Region:** `bom1` (Mumbai, configured in `vercel.json`)
-- **Cron Jobs:** Configured in `vercel.json` (`/api/cron/expire-payments`, `/api/cron/storage-orphans`, `/api/cron/expire-quotations`)
+- **Cron Jobs:** Configured in `vercel.json` (`/api/cron/expire-payments`, `/api/cron/storage-orphans`, `/api/cron/expire-quotations`) with daily schedules (`0 0 * * *`, `30 20 * * *`, `0 2 * * *`) for Vercel Hobby plan compatibility. On Vercel Pro (or via an external scheduler calling with `Authorization: Bearer $CRON_SECRET`), `expire-payments` and `expire-quotations` can be increased to `*/15 * * * *` and `0 * * * *`.
 
 ## 4. Supabase Production Checklist
 
