@@ -30,6 +30,10 @@ export const viewport: Viewport = {
   themeColor: '#6A0D2A',
   width: 'device-width',
   initialScale: 1,
+  minimumScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 };
 
 /**

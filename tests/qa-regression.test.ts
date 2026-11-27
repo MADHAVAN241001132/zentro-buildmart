@@ -42,10 +42,14 @@ test('guest site header renders complete store name without truncation classes',
   assert.ok(header.includes('Powered by ZENTRO BuildMart'), 'branding must include Powered by ZENTRO BuildMart');
 });
 
-test('mobile globals.css prevents iOS auto-zoom on form controls without disabling accessibility zoom', () => {
+test('mobile viewport and globals.css enforce fixed scale and prevent unwanted zoom', () => {
   const css = fs.readFileSync(path.join(ROOT, 'app/globals.css'), 'utf8');
   assert.ok(css.includes('font-size: 16px !important'), 'mobile inputs must enforce >= 16px font size');
   assert.ok(css.includes('touch-action: manipulation'), 'interactive controls must use touch-action: manipulation');
+  assert.ok(css.includes('touch-action: pan-y'), 'root document must use touch-action: pan-y');
   const layout = fs.readFileSync(path.join(ROOT, 'app/layout.tsx'), 'utf8');
-  assert.ok(!layout.includes('userScalable: false'), 'pinch-to-zoom accessibility must remain enabled');
+  assert.ok(layout.includes('minimumScale: 1'), 'viewport must set minimumScale: 1');
+  assert.ok(layout.includes('maximumScale: 1'), 'viewport must set maximumScale: 1');
+  assert.ok(layout.includes('userScalable: false'), 'viewport must set userScalable: false');
+  assert.ok(layout.includes("viewportFit: 'cover'"), "viewport must set viewportFit: 'cover'");
 });

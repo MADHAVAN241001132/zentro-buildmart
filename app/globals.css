@@ -3,10 +3,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Prevent accidental horizontal rubber-band shifting and double-tap zoom on interactive controls. */
+/* Prevent horizontal page movement, pinch-to-zoom on the root document, and double-tap zoom while preserving vertical scrolling. */
 html,
 body {
   overscroll-behavior-x: none;
+  touch-action: pan-y;
 }
 
 button,
