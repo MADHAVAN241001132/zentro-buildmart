@@ -24,12 +24,12 @@ export function optionalEnv(name: string): string | undefined {
 export function appUrl(): string {
   const configured = optionalEnv('NEXT_PUBLIC_APP_URL');
   if (configured) return configured.replace(/\/+$/, '');
+  const vercelHost = optionalEnv('VERCEL_URL');
+  if (vercelHost && process.env.VERCEL_ENV === 'preview') return `https://${vercelHost}`;
   const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
   if (isProduction) {
     throw new Error('Missing required environment variable: NEXT_PUBLIC_APP_URL (production links must not use localhost)');
   }
-  const vercelHost = optionalEnv('VERCEL_URL');
-  if (vercelHost && process.env.VERCEL_ENV === 'preview') return `https://${vercelHost}`;
   return 'http://localhost:3000';
 }
 
