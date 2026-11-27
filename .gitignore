@@ -2,6 +2,7 @@
 node_modules/
 .next/
 out/
+dist/
 coverage/
 next-env.d.ts
 *.tsbuildinfo
@@ -16,6 +17,12 @@ supabase/.temp/
 *.log
 *.pem
 *.key
+*.p12
+
+# AI / Python local tooling
+ComfyUI/
+.venv/
+__pycache__/
 .env.local
 # OS and editor
 .DS_Store
