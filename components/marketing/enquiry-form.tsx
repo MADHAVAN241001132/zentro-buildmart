@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import {
   submitBusinessEnquiryAction,
   type EnquiryFormState,
 } from '@/app/actions/enquiry';
+import type { PublicSubscriptionPlan } from '@/components/marketing/pricing-solutions';
+import { formatINR } from '@/lib/money';
 import {
   Sparkles,
   Send,
@@ -53,11 +55,19 @@ const FEATURES_LIST = [
   'Multi-Store Network Architecture',
 ];
 
-export function MarketingEnquiryForm() {
+export function MarketingEnquiryForm({ plans = [] }: { plans?: PublicSubscriptionPlan[] }) {
   const [state, formAction, isPending] = useActionState(
     submitBusinessEnquiryAction,
     INITIAL_STATE
   );
+
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('plan');
+    if (p && plans.some((pl) => pl.id === p)) {
+      setSelectedPlanId(p);
+    }
+  }, [plans]);
 
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([
     'Smart QR In-Store Shopping',
@@ -321,13 +331,14 @@ export function MarketingEnquiryForm() {
                   </div>
                 </div>
 
-                {/* City */}
-                <div>
-                  <label htmlFor="city" className="block text-xs font-bold uppercase tracking-wider text-[#6A0D2A]">
-                    City or Location <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
+                {/* City & Selected Plan */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div>
+                    <label htmlFor="city" className="block text-xs font-bold uppercase tracking-wider text-[#6A0D2A]">
+                      City or Location <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
                     id="city"
                     name="city"
                     required
@@ -337,6 +348,27 @@ export function MarketingEnquiryForm() {
                   {state.errors?.city && (
                     <p className="mt-1 text-[11px] text-red-600">{state.errors.city[0]}</p>
                   )}
+                </div>
+
+                  <div>
+                    <label htmlFor="selectedPlanId" className="block text-xs font-bold uppercase tracking-wider text-[#6A0D2A]">
+                      Interested Subscription Plan
+                    </label>
+                    <select
+                      id="selectedPlanId"
+                      name="selectedPlanId"
+                      value={selectedPlanId}
+                      onChange={(e) => setSelectedPlanId(e.target.value)}
+                      className="mt-1.5 w-full rounded-xl border border-[#E6D5C3] bg-white px-3.5 py-2.5 text-xs text-[#3B2529] focus:border-[#6A0D2A] focus:ring-1 focus:ring-[#6A0D2A] outline-none"
+                    >
+                      <option value="">Undecided / Custom Consultation</option>
+                      {plans.map((pl) => (
+                        <option key={pl.id} value={pl.id}>
+                          {pl.name} ({formatINR(pl.price_paise)} / {pl.billing_interval === 'annual' ? 'year' : 'month'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {/* Interested Features (Checkboxes) */}

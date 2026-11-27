@@ -62,26 +62,26 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
       />
 
       {/* Filter Form */}
-      <form method="get" className="grid gap-3 rounded-card border border-line bg-card p-4 md:grid-cols-[1fr_200px_200px_160px_auto]">
+      <form method="get" className="grid min-w-0 gap-3 rounded-card border border-line bg-card p-4 md:grid-cols-[1fr_180px_180px_150px_auto]">
         <label className="sr-only" htmlFor="q">Search products</label>
-        <input id="q" name="q" defaultValue={filters.q ?? ''} placeholder="Search name, SKU or model" className="rounded-control border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-burgundy" />
+        <input id="q" name="q" defaultValue={filters.q ?? ''} placeholder="Search name, SKU or model" className="w-full min-w-0 rounded-control border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-burgundy" />
         <label className="sr-only" htmlFor="category">Category</label>
-        <select id="category" name="category" defaultValue={filters.category ?? ''} className="rounded-control border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-burgundy">
+        <select id="category" name="category" defaultValue={filters.category ?? ''} className="w-full min-w-0 rounded-control border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-burgundy">
           <option value="">All categories</option>
           {(categories ?? []).map((c) => <option key={c.id as string} value={c.id as string}>{c.name as string}</option>)}
         </select>
         <label className="sr-only" htmlFor="brand">Brand</label>
-        <select id="brand" name="brand" defaultValue={filters.brand ?? ''} className="rounded-control border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-burgundy">
+        <select id="brand" name="brand" defaultValue={filters.brand ?? ''} className="w-full min-w-0 rounded-control border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-burgundy">
           <option value="">All brands</option>
           {(brands ?? []).map((b) => <option key={b.id as string} value={b.id as string}>{b.name as string}</option>)}
         </select>
         <label className="sr-only" htmlFor="status">Status</label>
-        <select id="status" name="status" defaultValue={filters.status ?? ''} className="rounded-control border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-burgundy">
+        <select id="status" name="status" defaultValue={filters.status ?? ''} className="w-full min-w-0 rounded-control border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-burgundy">
           <option value="">Active and archived</option>
           <option value="active">Active</option>
           <option value="archived">Archived</option>
         </select>
-        <button type="submit" className="rounded-control bg-burgundy px-5 py-2.5 text-sm font-semibold text-cream hover:bg-burgundy-deep transition-colors">Apply</button>
+        <button type="submit" className="min-h-[44px] w-full rounded-control bg-burgundy px-5 py-2.5 text-sm font-semibold text-cream transition-colors hover:bg-burgundy-deep md:w-auto">Apply</button>
       </form>
 
       {/* Product Content with Table / Grid View */}

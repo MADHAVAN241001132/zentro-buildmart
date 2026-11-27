@@ -19,6 +19,10 @@ import { MarketingFaq } from '@/components/marketing/faq';
 import { MarketingFinalCta } from '@/components/marketing/final-cta';
 import { MarketingEnquiryForm } from '@/components/marketing/enquiry-form';
 import { MarketingFooter } from '@/components/marketing/footer';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import type { PublicSubscriptionPlan } from '@/components/marketing/pricing-solutions';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'ZENTRO BuildMart | Smart QR Retail & Digital Showroom Platform by ZENTRO Networks',
@@ -33,9 +37,22 @@ export const metadata: Metadata = {
   },
 };
 
-export default function PlatformHome() {
+export default async function PlatformHome() {
+  let activePlans: PublicSubscriptionPlan[] = [];
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase
+      .from('subscription_plans')
+      .select('id, code, name, description, billing_interval, price_paise, max_products, products_unlimited, max_users, users_unlimited, features')
+      .eq('is_active', true)
+      .order('price_paise', { ascending: true });
+    activePlans = (data ?? []) as PublicSubscriptionPlan[];
+  } catch {
+    activePlans = [];
+  }
+
   return (
-    <div className="min-h-screen bg-[#FFF4E6] text-[#3B2529] selection:bg-[#C9A45C] selection:text-[#45081C]">
+    <div className="min-h-screen overflow-x-clip bg-[#FFF4E6] text-[#3B2529] selection:bg-[#C9A45C] selection:text-[#45081C]">
       {/* SECTION 1: Premium Navigation Bar */}
       <MarketingNavbar />
 
@@ -84,7 +101,7 @@ export default function PlatformHome() {
         <MarketingOnboarding />
 
         {/* SECTION 16: Packages and Custom Business Solutions */}
-        <MarketingPricingSolutions />
+        <MarketingPricingSolutions plans={activePlans} />
 
         {/* SECTION 17: Frequently Asked Questions */}
         <MarketingFaq />
@@ -93,7 +110,7 @@ export default function PlatformHome() {
         <MarketingFinalCta />
 
         {/* SECTION 19: Contact and Business Enquiry */}
-        <MarketingEnquiryForm />
+        <MarketingEnquiryForm plans={activePlans} />
       </main>
 
       {/* SECTION 20: Premium Footer */}

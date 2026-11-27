@@ -70,6 +70,7 @@ export async function createPlanAction(_prev: SubscriptionState, fd: FormData): 
 
   await recordAdminAudit({ actorId: admin.userId, action: 'plan.created', entityType: 'subscription_plan', entityId: data.id as string, after: { code: parsed.data.code, price_paise: price, max_products: parsed.data.maxProducts, products_unlimited: parsed.data.productsUnlimited, max_users: parsed.data.maxUsers, users_unlimited: parsed.data.usersUnlimited, features } });
   revalidatePath('/admin/subscriptions');
+  revalidatePath('/');
   return { ok: true, message: 'Plan created' };
 }
 
@@ -120,6 +121,7 @@ export async function updatePlanAction(planId: string, _prev: SubscriptionState,
     after,
   });
   revalidatePath('/admin/subscriptions');
+  revalidatePath('/');
   return { ok: true, message: 'Plan saved' };
 }
 
@@ -133,6 +135,7 @@ export async function setPlanActiveAction(formData: FormData): Promise<void> {
   if (error) return;
   await recordAdminAudit({ actorId: admin.userId, action: active ? 'plan.activated' : 'plan.deactivated', entityType: 'subscription_plan', entityId: id, after: { is_active: active } });
   revalidatePath('/admin/subscriptions');
+  revalidatePath('/');
 }
 
 /** Assigns a plan to a store. A new assignment for a store closes nothing automatically; set the old one to cancelled first. */
@@ -159,6 +162,7 @@ export async function assignSubscriptionAction(_prev: SubscriptionState, fd: For
 
   await recordAdminAudit({ actorId: admin.userId, storeId: d.storeId, action: 'subscription.assigned', entityType: 'subscription', entityId: data.id as string, after: { plan_id: d.planId, status: d.status, period_end: d.periodEnd } });
   revalidatePath('/admin/subscriptions');
+  revalidatePath('/');
   return { ok: true, message: 'Subscription assigned' };
 }
 
@@ -187,6 +191,7 @@ export async function renewSubscriptionAction(_prev: SubscriptionState, fd: Form
   }
   await recordAdminAudit({ actorId: admin.userId, storeId: before.store_id as string, action: 'subscription.renewed', entityType: 'subscription', entityId: (newId as string) ?? id, before: { period_end: before.period_end, status: before.status }, after: { period_end: periodEnd, status: 'active', previous_subscription_id: id } });
   revalidatePath('/admin/subscriptions');
+  revalidatePath('/');
   return { ok: true, message: 'Subscription renewed' };
 }
 
@@ -202,6 +207,7 @@ export async function setSubscriptionStatusAction(formData: FormData): Promise<v
   if (error) return;
   await recordAdminAudit({ actorId: admin.userId, storeId: before.store_id as string, action: 'subscription.status_changed', entityType: 'subscription', entityId: id, before: { status: before.status }, after: { status } });
   revalidatePath('/admin/subscriptions');
+  revalidatePath('/');
 }
 
 export async function grantAllowanceAction(_prev: SubscriptionState, fd: FormData): Promise<SubscriptionState> {
@@ -222,6 +228,7 @@ export async function grantAllowanceAction(_prev: SubscriptionState, fd: FormDat
     return { ok: false, message: 'Could not grant the allowance' };
   }
   revalidatePath('/admin/subscriptions');
+  revalidatePath('/');
   return { ok: true, message: 'Allowance granted' };
 }
 
@@ -233,4 +240,5 @@ export async function revokeAllowanceAction(formData: FormData): Promise<void> {
   const { data, error } = await supabase.rpc('revoke_migration_allowance', { p_store: storeId });
   if (error || data !== true) return;
   revalidatePath('/admin/subscriptions');
+  revalidatePath('/');
 }

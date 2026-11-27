@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { ProductCard } from '@/components/guest/product-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { RemoteImage } from '@/components/guest/remote-image';
+import { ZentroLogo } from '@/components/ui/zentro-logo';
 import { currentLocale } from '@/lib/i18n/server';
 import { createTranslator } from '@/lib/i18n/translate';
 import { listCategories, listProducts, listStoreBrands, getStoreBySlug } from '@/lib/services/storefront';
@@ -70,9 +71,7 @@ export default async function StoreHome({ params }: { params: Promise<{ storeSlu
                   <img src={store.logoUrl} alt={`${store.name} Logo`} className="h-full w-full object-contain" />
                 </div>
               ) : (
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gold/20 font-display text-2xl text-gold mb-3">
-                  {store.name.trim().charAt(0).toUpperCase() || 'S'}
-                </span>
+                <ZentroLogo size={56} className="mb-3 rounded-xl shadow-rest" alt={`${store.name} powered by ZENTRO BuildMart`} />
               )}
               <p className="font-display text-2xl text-gold">{store.name}</p>
               <p className="text-xs text-cream/90 mt-1.5 max-w-sm">Discover our collection of products and explore a convenient digital showroom experience.</p>

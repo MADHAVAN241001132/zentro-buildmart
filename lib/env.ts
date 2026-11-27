@@ -26,6 +26,8 @@ export function appUrl(): string {
   if (configured) return configured.replace(/\/+$/, '');
   const vercelHost = optionalEnv('VERCEL_URL');
   if (vercelHost && process.env.VERCEL_ENV === 'preview') return `https://${vercelHost}`;
+  const vercelProdHost = optionalEnv('VERCEL_PROJECT_PRODUCTION_URL');
+  if (vercelProdHost && process.env.VERCEL_ENV === 'production') return `https://${vercelProdHost}`;
   const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
   if (isProduction) {
     throw new Error('Missing required environment variable: NEXT_PUBLIC_APP_URL (production links must not use localhost)');

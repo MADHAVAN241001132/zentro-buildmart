@@ -1,4 +1,5 @@
 import { PageHeader } from '@/components/owner/page-header';
+import { PlatformSettingsDashboard } from '@/components/admin/platform-settings-dashboard';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { SettingForm } from './setting-form';
 
@@ -7,20 +8,23 @@ export const dynamic = 'force-dynamic';
 export default async function SettingsPage() {
   const supabase = await createSupabaseServerClient();
   const { data: rows } = await supabase.from('platform_settings').select('key, value, updated_at').order('key');
+
+  const initial: Record<string, Record<string, unknown>> = {};
+  const rawRows = (rows ?? []).map((r) => {
+    const key = r.key as string;
+    const val = (r.value as Record<string, unknown> | null) ?? {};
+    initial[key] = val;
+    return { key, value: val, updated_at: r.updated_at as string };
+  });
+
   return (
-    <div className="grid gap-6">
-      <PageHeader eyebrow="Platform" title="Settings" description="Platform-wide values stored as JSON objects. Changes are audited. Secrets such as API keys never belong here; they live in environment variables." />
-      <SettingForm />
-      {!rows || rows.length === 0 ? <p className="text-sm text-ink-muted">No platform settings saved yet.</p> : (
-        <ul className="divide-y divide-line rounded-card border border-line bg-card">
-          {rows.map((r) => (
-            <li key={r.key as string} className="grid gap-1 px-4 py-3 text-sm">
-              <span className="font-mono font-medium text-ink">{r.key as string}</span>
-              <pre className="overflow-x-auto text-xs text-ink-muted">{JSON.stringify(r.value, null, 2)}</pre>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="grid min-w-0 gap-6">
+      <PageHeader
+        eyebrow="Platform"
+        title="Platform Settings"
+        description="Configure general identity, landing page details, store defaults, billing policies, notifications, support, and security. All changes are audited."
+      />
+      <PlatformSettingsDashboard initial={initial} rawRows={rawRows} advancedSlot={<SettingForm />} />
     </div>
   );
 }

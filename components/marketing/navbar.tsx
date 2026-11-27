@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
+import { ZentroLogo } from '@/components/ui/zentro-logo';
 import {
   Menu,
   X,
@@ -59,9 +60,7 @@ export function MarketingNavbar() {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand identity */}
         <Link href="#home" className="flex items-center gap-3 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-[#C9A45C] to-[#8F7035] text-[#45081C] font-display font-bold text-xl shadow-md transition-transform group-hover:scale-105">
-            Z
-          </div>
+          <ZentroLogo size={40} className="rounded-lg shadow-md transition-transform group-hover:scale-105" />
           <div className="flex flex-col">
             <span className="font-display text-lg font-bold tracking-tight text-[#FFF4E6] group-hover:text-[#C9A45C] transition-colors">
               ZENTRO BuildMart

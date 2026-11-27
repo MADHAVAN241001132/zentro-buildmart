@@ -1,11 +1,12 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { signOutAction } from '@/app/owner/login/actions';
 import { getOwnerContext, loadMyStorePermissions } from '@/lib/services/owner';
 import { getStoreEnabledFeatures, type FeatureKey } from '@/lib/services/entitlements';
+import { loadCurrentUserProfile } from '@/lib/services/profile';
 import type { PermissionKey } from '@/lib/authz/permissions';
 import { OwnerStatusBar } from '@/components/owner/owner-status-bar';
+import { PortalShell } from '@/components/portal/portal-shell';
 
 type NavItem = { href: string; label: string; permission: PermissionKey | null; feature?: FeatureKey };
 type NavGroup = { heading: string; items: NavItem[] };
@@ -63,53 +64,35 @@ const NAV_GROUPS: NavGroup[] = [
 export default async function OwnerLayout({ children }: { children: ReactNode }) {
   const context = await getOwnerContext();
   if (!context) redirect('/owner/login');
-  const [permissionsList, enabledFeatures] = await Promise.all([
+  const [permissionsList, enabledFeatures, profile] = await Promise.all([
     loadMyStorePermissions(context.storeId),
     getStoreEnabledFeatures(context.storeId),
+    loadCurrentUserProfile(),
   ]);
   const held = new Set(permissionsList);
   const visibleGroups = NAV_GROUPS.map((group) => ({
     heading: group.heading,
-    items: group.items.filter(
-      (item) => (item.permission === null || held.has(item.permission)) && (!item.feature || enabledFeatures.has(item.feature)),
-    ),
+    items: group.items
+      .filter((item) => (item.permission === null || held.has(item.permission)) && (!item.feature || enabledFeatures.has(item.feature)))
+      .map((item) => ({ href: item.href, label: item.label })),
   })).filter((group) => group.items.length > 0);
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-cream lg:grid lg:grid-cols-[248px_1fr]">
-      <aside className="border-b border-line bg-gradient-to-b from-burgundy-deep to-burgundy-deep/95 text-cream lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0">
-        <div className="flex items-center justify-between gap-3 border-b border-cream/10 p-5">
-          <div className="min-w-0">
-            <p className="font-display text-lg text-gold">ZENTRO</p>
-            <p className="truncate text-sm text-cream/80">{context.storeName}</p>
-          </div>
-          <form action={signOutAction}>
-            <button type="submit" className="rounded-control px-2 py-1 text-xs uppercase tracking-wide text-cream/70 hover:bg-cream/10 hover:text-cream">
-              Sign out
-            </button>
-          </form>
-        </div>
-        <nav aria-label="Owner" className="flex gap-4 overflow-x-auto px-3 py-3 lg:flex-col lg:gap-5 lg:py-5">
-          {visibleGroups.map((group) => (
-            <div key={group.heading} className="flex shrink-0 gap-1 lg:flex-col">
-              <p className="hidden px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold/80 lg:block">{group.heading}</p>
-              {group.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="whitespace-nowrap rounded-control px-3 py-2 text-sm text-cream/90 transition hover:bg-cream/10 hover:text-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          ))}
-        </nav>
-      </aside>
-      <main className="min-w-0 px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
+    <PortalShell
+      portalTitle="ZENTRO"
+      portalSubtitle={context.storeName}
+      navGroups={visibleGroups}
+      userName={profile?.fullName || context.storeName}
+      userEmail={context.email ?? profile?.email ?? ''}
+      avatarUrl={profile?.avatarUrl ?? null}
+      profileHref="/owner/profile"
+      settingsHref={held.has('store_settings') ? '/owner/settings' : null}
+      signOutAction={signOutAction}
+    >
+      <div className="mb-4">
         <OwnerStatusBar />
-        {children}
-      </main>
-    </div>
+      </div>
+      {children}
+    </PortalShell>
   );
 }

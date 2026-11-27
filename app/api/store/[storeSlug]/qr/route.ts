@@ -64,7 +64,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ stor
   return new Response(new Uint8Array(png), {
     headers: {
       'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'no-store',
       ...(download === '1' ? { 'Content-Disposition': `attachment; filename="${name}"` } : {}),
     },
   });

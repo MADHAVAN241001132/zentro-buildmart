@@ -56,7 +56,41 @@ export function CategoriesTable({
   };
 
   return (
-    <div className="overflow-x-auto rounded-card border border-line bg-card shadow-xs">
+    <>
+      <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:hidden">
+        {categories.map((c) => (
+          <article key={c.id} className="flex flex-col justify-between overflow-hidden rounded-card border border-line bg-card shadow-xs">
+            <div>
+              <div
+                onClick={() => c.image_url && openPreview(c)}
+                className={`relative aspect-[16/10] w-full overflow-hidden bg-cream ${c.image_url ? 'cursor-pointer' : ''}`}
+              >
+                {c.image_url ? (
+                  <img src={c.image_url} alt={c.name} loading="lazy" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-ink-muted">
+                    <Layers className="h-8 w-8 text-gold opacity-40" />
+                  </div>
+                )}
+                <span className={`absolute right-2.5 top-2.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${c.is_active ? 'bg-emerald-700/85 text-white' : 'bg-stone-800/80 text-white'}`}>
+                  {c.is_active ? 'Active' : 'Hidden'}
+                </span>
+              </div>
+              <div className="grid gap-1.5 p-4">
+                <h3 className="font-display text-base font-bold text-burgundy [overflow-wrap:anywhere]">{c.name}</h3>
+                <p className="font-mono text-[11px] text-ink-muted truncate">{c.slug}</p>
+                <Link href={`/owner/products?category=${c.id}`} className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-burgundy hover:underline">
+                  <span>{c.productCount} product{c.productCount === 1 ? '' : 's'}</span>
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+            <div className="border-t border-line px-4 py-3 text-sm">{c.editSlot}</div>
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-card border border-line bg-card shadow-xs lg:block">
       <table className="w-full min-w-[700px] text-left text-sm">
         <thead className="border-b border-line text-xs uppercase tracking-wide text-ink-muted bg-cream/50">
           <tr>
@@ -152,7 +186,8 @@ export function CategoriesTable({
         data={previewData}
         onClose={() => setPreviewData(null)}
       />
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -176,7 +211,44 @@ export function BrandsTable({
   };
 
   return (
-    <div className="overflow-x-auto rounded-card border border-line bg-card shadow-xs">
+    <>
+      <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:hidden">
+        {brands.map((b) => (
+          <article key={b.id} className="flex flex-col justify-between overflow-hidden rounded-card border border-line bg-card shadow-xs">
+            <div>
+              <div
+                onClick={() => b.logo_url && openPreview(b)}
+                className={`relative aspect-[16/10] w-full overflow-hidden bg-cream ${b.logo_url ? 'cursor-pointer' : ''}`}
+              >
+                {b.logo_url ? (
+                  <img src={b.logo_url} alt={b.name} loading="lazy" className="h-full w-full object-contain p-3" />
+                ) : (
+                  <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-[#45081C] to-[#6A0D2A] font-display font-bold text-gold">
+                    <span className="text-2xl tracking-wider">{getBrandInitials(b.name)}</span>
+                    <span className="mt-0.5 font-sans text-[9px] uppercase tracking-widest text-cream/70">Brand</span>
+                  </div>
+                )}
+                {b.is_premium ? (
+                  <span className="absolute right-2.5 top-2.5 rounded-full border border-gold/40 bg-burgundy/90 px-2 py-0.5 text-[10px] font-bold text-gold">
+                    ★ Premium
+                  </span>
+                ) : null}
+              </div>
+              <div className="grid gap-1.5 p-4">
+                <h3 className="font-display text-base font-bold text-burgundy [overflow-wrap:anywhere]">{b.name}</h3>
+                <p className="font-mono text-[11px] text-ink-muted truncate">{b.slug}</p>
+                <Link href={`/owner/products?brand=${b.id}`} className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-burgundy hover:underline">
+                  <span>{b.productCount} product{b.productCount === 1 ? '' : 's'}</span>
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+            <div className="border-t border-line px-4 py-3 text-sm">{b.editSlot}</div>
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-card border border-line bg-card shadow-xs lg:block">
       <table className="w-full min-w-[640px] text-left text-sm">
         <thead className="border-b border-line text-xs uppercase tracking-wide text-ink-muted bg-cream/50">
           <tr>
@@ -269,6 +341,7 @@ export function BrandsTable({
         data={previewData}
         onClose={() => setPreviewData(null)}
       />
-    </div>
+      </div>
+    </>
   );
 }

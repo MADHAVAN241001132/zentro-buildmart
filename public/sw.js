@@ -14,7 +14,7 @@
  * removed on activation. Nothing else is deleted.
  */
 
-const CACHE_VERSION = 'zentro-pwa-v1';
+const CACHE_VERSION = 'zentro-pwa-v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const OFFLINE_URL = '/offline.html';
 const PRECACHE = [

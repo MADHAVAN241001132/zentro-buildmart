@@ -151,7 +151,7 @@ export default async function FeatureFlagsPage({
   const disabledCount = FEATURE_KEYS.length - enabledCount;
 
   return (
-    <div className="grid gap-6">
+    <div className="grid min-w-0 gap-6">
       <PageHeader
         eyebrow="Platform"
         title="Feature Flags"
@@ -199,7 +199,7 @@ export default async function FeatureFlagsPage({
                         const isEnabled = flagMap.get(`${selectedStore.id as string}:${key}`) ?? false;
                         const scopeBadge = SCOPE_BADGE[meta.scope];
                         return (
-                          <li key={key} className="flex items-center gap-4 px-5 py-4">
+                          <li key={key} className="flex flex-wrap items-start gap-3 px-4 py-4 sm:flex-nowrap sm:items-center sm:gap-4 sm:px-5">
                             <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-control ${isEnabled ? 'bg-burgundy/10 text-burgundy' : 'bg-ink-muted/10 text-ink-muted'}`}>
                               {meta.icon}
                             </span>

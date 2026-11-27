@@ -58,7 +58,7 @@ export default async function CategoriesPage() {
           <summary className="cursor-pointer font-semibold text-burgundy hover:underline">
             Edit
           </summary>
-          <div className="mt-3 min-w-[280px] text-left">
+          <div className="mt-3 w-full min-w-0 text-left">
             <ImageSlot
               target="category"
               targetId={id}

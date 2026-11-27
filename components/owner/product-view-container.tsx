@@ -198,9 +198,9 @@ export function ProductViewContainer({
         </div>
       </div>
 
-      {/* VIEW 1: TABLE VIEW */}
+      {/* VIEW 1: TABLE VIEW (desktop lg+ when table mode selected) */}
       {viewMode === 'table' && (
-        <div className="overflow-x-auto rounded-card border border-line bg-card shadow-xs">
+        <div className="hidden overflow-x-auto rounded-card border border-line bg-card shadow-xs lg:block">
           <table className="w-full min-w-[840px] text-left text-sm">
             <thead className="border-b border-line text-xs uppercase tracking-wide text-ink-muted bg-cream/50">
               <tr>
@@ -351,9 +351,8 @@ export function ProductViewContainer({
         </div>
       )}
 
-      {/* VIEW 2: GRID VIEW */}
-      {viewMode === 'grid' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+      {/* VIEW 2: GRID VIEW (always shown on mobile/tablet < lg; shown on desktop when grid mode selected) */}
+      <div className={`${viewMode === 'grid' ? 'grid' : 'grid lg:hidden'} grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 lg:gap-5`}>
           {products.map((row) => {
             const primary = getPrimaryImage(row);
             const def = getDefaultVariant(row);
@@ -424,9 +423,9 @@ export function ProductViewContainer({
                       <Link href={`/owner/products/${row.id}`}>{row.name}</Link>
                     </h3>
 
-                    {/* SKU */}
+                    {/* SKU, variants & GST */}
                     <p className="text-[11px] font-mono text-ink-muted">
-                      SKU {row.sku}
+                      SKU {row.sku} · {row.product_variants.length} var · GST {(row.gst_rate_bps / 100).toFixed(0)}%
                     </p>
 
                     {/* Price & Stock Strip */}
@@ -474,7 +473,6 @@ export function ProductViewContainer({
             );
           })}
         </div>
-      )}
 
       {/* Image Preview Modal Component */}
       <ImagePreviewModal

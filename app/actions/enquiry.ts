@@ -11,6 +11,7 @@ const enquirySchema = z.object({
   email: z.string().trim().email('Please enter a valid email address'),
   city: z.string().trim().min(2, 'City or location is required').max(100),
   storeCount: z.string().trim().min(1, 'Please select number of stores'),
+  selectedPlanId: z.string().uuid().optional().or(z.literal('')),
   interestedFeatures: z.array(z.string()).default([]),
   requirements: z.string().trim().max(2000).optional().default(''),
   consent: z.boolean().refine((val) => val === true, {
@@ -42,6 +43,7 @@ export async function submitBusinessEnquiryAction(
     email: formData.get('email') as string,
     city: formData.get('city') as string,
     storeCount: formData.get('storeCount') as string,
+    selectedPlanId: ((formData.get('selectedPlanId') as string) || '').trim(),
     interestedFeatures: rawFeatures,
     requirements: (formData.get('requirements') as string) || '',
     consent: rawConsent === 'on' || rawConsent === 'true',
@@ -58,6 +60,22 @@ export async function submitBusinessEnquiryAction(
 
   const data = parsed.data;
   const admin = createSupabaseAdminClient();
+
+  let selectedPlanLabel = 'Not specified';
+  if (data.selectedPlanId) {
+    const { data: plan } = await admin
+      .from('subscription_plans')
+      .select('id, name, code, is_active')
+      .eq('id', data.selectedPlanId)
+      .maybeSingle();
+    if (!plan || !plan.is_active) {
+      return {
+        ok: false,
+        message: 'The selected subscription plan is no longer active. Please choose an active plan.',
+      };
+    }
+    selectedPlanLabel = `${plan.name as string} (${plan.code as string})`;
+  }
 
   try {
     // 1. Create a high-priority sales onboarding ticket
@@ -94,6 +112,7 @@ export async function submitBusinessEnquiryAction(
       `• Email Address: ${data.email}`,
       `• Location / City: ${data.city}`,
       `• Number of Stores: ${data.storeCount}`,
+      `• Selected Plan: ${selectedPlanLabel}`,
       ``,
       `INTERESTED CAPABILITIES:`,
       data.interestedFeatures.length > 0

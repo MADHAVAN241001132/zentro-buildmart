@@ -24,12 +24,12 @@ export function StoreSelector({ stores, selectedStoreId }: Props) {
   }
 
   return (
-    <label className="flex items-center gap-2 text-sm font-semibold text-ink">
-      <span>Store:</span>
+    <label className="flex w-full min-w-0 flex-wrap items-center gap-2 text-sm font-semibold text-ink sm:w-auto">
+      <span className="shrink-0">Store:</span>
       <select
         value={selectedStoreId ?? stores[0]?.id ?? ''}
         onChange={handleChange}
-        className="rounded-control border border-line bg-cream px-3 py-2 text-sm font-medium text-ink focus:border-burgundy focus:outline-none focus:ring-2 focus:ring-gold/40"
+        className="w-full min-w-0 max-w-full flex-1 rounded-control border border-line bg-cream px-3 py-2 text-sm font-medium text-ink focus:border-burgundy focus:outline-none focus:ring-2 focus:ring-gold/40 sm:w-auto"
       >
         {stores.map((s) => (
           <option key={s.id} value={s.id}>
