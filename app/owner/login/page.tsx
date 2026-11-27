@@ -6,7 +6,7 @@ import { LoginForm } from './login-form';
 export const dynamic = 'force-dynamic';
 
 export default async function OwnerLoginPage() {
-  if (await getOwnerContext()) redirect('/owner/cash');
+  if (await getOwnerContext()) redirect('/owner');
   return (
     <main className="grid min-h-screen place-items-center bg-cream px-4 py-12">
       <div className="grid w-full min-w-0 max-w-md gap-6 rounded-card border border-line bg-card p-5 shadow-rest sm:p-8">

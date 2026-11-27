@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { targetUrl } from '@/lib/qr';
+import { resolvePublicOrigin, targetUrl } from '@/lib/qr';
 import { isEntryToken } from '@/lib/qr/entry';
 import { ensureGuestSession } from '@/lib/services/guest';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
@@ -29,11 +29,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
   const { error: recordError } = await admin.rpc('zb_record_qr_entry', { p_token: token, p_session: session.id });
   if (recordError) console.error('qr entry not recorded', recordError.code);
 
+  const origin = resolvePublicOrigin(_request);
   const location =
     target.target_type === 'showroom'
-      ? targetUrl(target.store_slug, { type: 'showroom' })
+      ? targetUrl(target.store_slug, { type: 'showroom' }, origin)
       : target.target_slug
-        ? targetUrl(target.store_slug, { type: target.target_type, slug: target.target_slug })
+        ? targetUrl(target.store_slug, { type: target.target_type, slug: target.target_slug }, origin)
         : null;
   if (!location) return NOT_ACTIVE();
 

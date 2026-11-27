@@ -39,7 +39,7 @@ export default async function StoreLayout({ children, params }: { children: Reac
         showVisualizer={enabledFeatures.has('room_visualiser')}
         showProjects={enabledFeatures.has('house_project_planner')}
       />
-      <main className="mx-auto max-w-content px-4 pb-28 pt-6 sm:px-6 md:pb-16">{children}</main>
+      <main className="mx-auto w-full min-w-0 max-w-content px-4 pb-28 pt-6 sm:px-6 md:pb-16">{children}</main>
       <footer className="border-t border-line bg-card">
         <div className="mx-auto flex max-w-content flex-col gap-6 px-4 py-8 text-sm text-ink-muted sm:px-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

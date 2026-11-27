@@ -17,8 +17,10 @@ import { MarketingOnboarding } from '@/components/marketing/onboarding';
 import { MarketingPricingSolutions } from '@/components/marketing/pricing-solutions';
 import { MarketingFaq } from '@/components/marketing/faq';
 import { MarketingFinalCta } from '@/components/marketing/final-cta';
+import { MarketingContactSection } from '@/components/marketing/contact-section';
 import { MarketingEnquiryForm } from '@/components/marketing/enquiry-form';
 import { MarketingFooter } from '@/components/marketing/footer';
+import { Phone } from 'lucide-react';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { PublicSubscriptionPlan } from '@/components/marketing/pricing-solutions';
 
@@ -109,11 +111,24 @@ export default async function PlatformHome() {
         {/* SECTION 18: Final Call to Action */}
         <MarketingFinalCta />
 
-        {/* SECTION 19: Contact and Business Enquiry */}
+        {/* SECTION 19: Direct Contact Us */}
+        <MarketingContactSection />
+
+        {/* SECTION 20: Business Demo Enquiry */}
         <MarketingEnquiryForm plans={activePlans} />
       </main>
 
-      {/* SECTION 20: Premium Footer */}
+      {/* Floating Direct Call CTA */}
+      <a
+        href="tel:+916381337271"
+        aria-label="Call ZENTRO Networks at +91 63813 37271"
+        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full border border-[#C9A45C] bg-[#6A0D2A] px-4 py-3 text-xs font-bold text-[#FFF4E6] shadow-xl transition hover:scale-105 hover:bg-[#45081C]"
+      >
+        <Phone className="h-4 w-4 text-[#C9A45C]" />
+        <span className="hidden sm:inline">+91 63813 37271</span>
+      </a>
+
+      {/* SECTION 21: Premium Footer */}
       <MarketingFooter />
     </div>
   );

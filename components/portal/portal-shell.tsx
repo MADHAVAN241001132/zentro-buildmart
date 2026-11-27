@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, KeyRound, LogOut, Menu, Settings, User, X } from 'lucide-react';
 import { ZentroLogo } from '@/components/ui/zentro-logo';
@@ -37,9 +37,13 @@ export function PortalShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  /** Derive the portal base path so clicking the brand navigates to the dashboard */
+  const portalBase = pathname.startsWith('/admin') ? '/admin' : '/owner';
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -149,13 +153,13 @@ export function PortalShell({
     <div className={`min-h-screen overflow-x-clip bg-cream lg:grid ${sidebarWidthClass}`}>
       {/* Desktop Sidebar */}
       <aside className="hidden border-r border-line bg-gradient-to-b from-burgundy-deep to-burgundy text-cream lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:overflow-y-auto">
-        <div className="flex items-center gap-3 border-b border-cream/15 px-5 py-5">
+        <Link href={portalBase} onClick={() => router.refresh()} className="flex items-center gap-3 border-b border-cream/15 px-5 py-5 transition-colors hover:bg-white/5">
           <ZentroLogo size={36} className="rounded-lg" />
           <div className="min-w-0">
             <p className="truncate font-display text-lg text-gold">{portalTitle}</p>
             {portalSubtitle ? <p className="truncate text-xs text-cream/75">{portalSubtitle}</p> : null}
           </div>
-        </div>
+        </Link>
         <nav aria-label={portalTitle} className="flex-1 overflow-y-auto px-3 py-4">
           {renderNavLinks()}
         </nav>
@@ -173,11 +177,13 @@ export function PortalShell({
             >
               <Menu className="h-5 w-5" />
             </button>
-            <ZentroLogo size={32} className="rounded-md" />
-            <div className="min-w-0">
-              <p className="truncate font-display text-base leading-tight text-gold">{portalTitle}</p>
-              {portalSubtitle ? <p className="truncate text-[11px] text-cream/75">{portalSubtitle}</p> : null}
-            </div>
+            <Link href={portalBase} onClick={() => router.refresh()} className="flex min-w-0 items-center gap-2.5">
+              <ZentroLogo size={32} className="rounded-md" />
+              <div className="min-w-0">
+                <p className="truncate font-display text-base leading-tight text-gold">{portalTitle}</p>
+                {portalSubtitle ? <p className="truncate text-[11px] text-cream/75">{portalSubtitle}</p> : null}
+              </div>
+            </Link>
           </div>
 
           <div className="hidden items-center gap-2 text-xs font-medium text-ink-muted lg:flex">

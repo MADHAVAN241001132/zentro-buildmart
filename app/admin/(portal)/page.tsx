@@ -8,6 +8,7 @@ import { conversionText } from '@/lib/qr/analytics';
 import { requireAdmin } from '@/lib/services/admin';
 import { DashboardError, dashboardStoreOptions, loadAdminDashboard, type AdminDashboard } from '@/lib/services/admin-dashboard';
 import { loadPlatformQrAnalytics } from '@/lib/services/qr-analytics';
+import { formatIST, formatISTDate } from '@/lib/format-ist';
 
 export const dynamic = 'force-dynamic';
 
@@ -309,16 +310,31 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
             {data.activity.recent.length === 0 ? (
               <p className="text-sm text-ink-muted">No administrative actions yet.</p>
             ) : (
-              <Table headers={['Action', 'Entity', 'Actor', 'When']}>
-                {data.activity.recent.map((a, i) => (
-                  <tr key={i}>
-                    <Td>{a.action}</Td>
-                    <Td>{a.entity_type}</Td>
-                    <Td>{a.actor_type}</Td>
-                    <Td>{new Date(a.created_at).toLocaleString('en-IN')}</Td>
-                  </tr>
-                ))}
-              </Table>
+              <>
+                {/* Desktop table — hidden on mobile */}
+                <div className="hidden lg:block">
+                  <Table headers={['Action', 'Entity', 'Actor', 'When']}>
+                    {data.activity.recent.map((a, i) => (
+                      <tr key={i}>
+                        <Td>{a.action}</Td>
+                        <Td>{a.entity_type}</Td>
+                        <Td>{a.actor_type}</Td>
+                        <Td>{formatIST(a.created_at)}</Td>
+                      </tr>
+                    ))}
+                  </Table>
+                </div>
+                {/* Mobile cards */}
+                <ul className="grid gap-2 lg:hidden">
+                  {data.activity.recent.map((a, i) => (
+                    <li key={i} className="rounded-card border border-line bg-card p-3 text-sm">
+                      <p className="font-semibold text-ink">{a.action}</p>
+                      <p className="mt-0.5 text-xs text-ink-muted">{a.entity_type} · {a.actor_type}</p>
+                      <p className="mt-0.5 text-xs text-ink-muted">{formatIST(a.created_at)}</p>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </div>
           <div>
@@ -326,16 +342,34 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
             {data.activity.support.recent_pending.length === 0 ? (
               <p className="text-sm text-ink-muted">No pending support cases. <Link href="/admin/support" className="text-burgundy underline">Open support</Link></p>
             ) : (
-              <Table headers={['Subject', 'Status', 'Priority', 'Opened']}>
-                {data.activity.support.recent_pending.map((t, i) => (
-                  <tr key={i}>
-                    <Td>{t.subject}</Td>
-                    <Td>{t.status}</Td>
-                    <Td>{t.priority}</Td>
-                    <Td>{new Date(t.created_at).toLocaleDateString('en-IN')}</Td>
-                  </tr>
-                ))}
-              </Table>
+              <>
+                {/* Desktop table */}
+                <div className="hidden lg:block">
+                  <Table headers={['Subject', 'Status', 'Priority', 'Opened']}>
+                    {data.activity.support.recent_pending.map((t, i) => (
+                      <tr key={i}>
+                        <Td>{t.subject}</Td>
+                        <Td>{t.status}</Td>
+                        <Td>{t.priority}</Td>
+                        <Td>{formatISTDate(t.created_at)}</Td>
+                      </tr>
+                    ))}
+                  </Table>
+                </div>
+                {/* Mobile cards */}
+                <ul className="grid gap-2 lg:hidden">
+                  {data.activity.support.recent_pending.map((t, i) => (
+                    <li key={i} className="rounded-card border border-line bg-card p-3 text-sm">
+                      <p className="font-semibold text-ink [overflow-wrap:anywhere]">{t.subject}</p>
+                      <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-control border border-line bg-cream px-2 py-0.5 capitalize">{t.status}</span>
+                        <span className="rounded-control border border-line bg-cream px-2 py-0.5">{t.priority}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-ink-muted">{formatISTDate(t.created_at)}</p>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </div>
         </div>

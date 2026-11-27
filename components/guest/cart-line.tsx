@@ -48,7 +48,7 @@ export function CartLine(props: CartLineProps) {
   }
 
   return (
-    <li className="flex flex-col gap-3 rounded-card border border-line bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+    <li className="flex min-w-0 flex-col gap-3 rounded-card border border-line bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 gap-4">
         <ProductThumb src={props.imageUrl ?? null} name={props.productName} className="h-20 w-20 sm:h-16 sm:w-16" />
         <div className="min-w-0">

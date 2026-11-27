@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import {
   submitBusinessEnquiryAction,
   type EnquiryFormState,
@@ -61,6 +61,9 @@ export function MarketingEnquiryForm({ plans = [] }: { plans?: PublicSubscriptio
     INITIAL_STATE
   );
 
+  const formRef = useRef<HTMLFormElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
+
   const [selectedPlanId, setSelectedPlanId] = useState('');
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get('plan');
@@ -73,6 +76,17 @@ export function MarketingEnquiryForm({ plans = [] }: { plans?: PublicSubscriptio
     'Smart QR In-Store Shopping',
     'Digital Product Catalogue',
   ]);
+
+  useEffect(() => {
+    if (state.ok) {
+      formRef.current?.reset();
+      setSelectedPlanId('');
+      setSelectedFeatures(['Smart QR In-Store Shopping', 'Digital Product Catalogue']);
+      statusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (state.message) {
+      statusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [state]);
 
   const toggleFeature = (feat: string) => {
     setSelectedFeatures((prev) =>
@@ -185,33 +199,35 @@ export function MarketingEnquiryForm({ plans = [] }: { plans?: PublicSubscriptio
               </p>
 
               {/* Status Alerts */}
-              {state.ok && (
-                <div className="mt-6 flex items-start gap-3 rounded-xl border border-emerald-400 bg-emerald-50 p-4 text-emerald-950">
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-bold text-emerald-900">Enquiry Received Successfully</p>
-                    <p className="text-xs text-emerald-800 mt-0.5">{state.message}</p>
-                    {state.ticketId && (
-                      <p className="text-[10px] font-mono text-emerald-700 mt-1">
-                        Reference Ticket: #{state.ticketId.slice(0, 8)}
-                      </p>
-                    )}
+              <div ref={statusRef}>
+                {state.ok && (
+                  <div className="mt-6 flex items-start gap-3 rounded-xl border border-emerald-400 bg-emerald-50 p-4 text-emerald-950">
+                    <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-emerald-900">Enquiry Received Successfully</p>
+                      <p className="text-xs text-emerald-800 mt-0.5">{state.message}</p>
+                      {state.ticketId && (
+                        <p className="text-[10px] font-mono text-emerald-700 mt-1">
+                          Reference Ticket: #{state.ticketId.slice(0, 8)}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {!state.ok && state.message && (
-                <div className="mt-6 flex items-start gap-3 rounded-xl border border-red-300 bg-red-50 p-4 text-red-950">
-                  <AlertCircle className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-bold text-red-900">Submission Error</p>
-                    <p className="text-xs text-red-800 mt-0.5">{state.message}</p>
+                {!state.ok && state.message && (
+                  <div className="mt-6 flex items-start gap-3 rounded-xl border border-red-300 bg-red-50 p-4 text-red-950">
+                    <AlertCircle className="h-5 w-5 shrink-0 text-red-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-red-900">Submission Error</p>
+                      <p className="text-xs text-red-800 mt-0.5">{state.message}</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* The Form */}
-              <form action={formAction} className="mt-8 space-y-6">
+              <form ref={formRef} action={formAction} className="mt-8 space-y-6">
                 
                 {/* 2-column: Name & Business Name */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

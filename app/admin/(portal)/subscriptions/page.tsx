@@ -43,11 +43,11 @@ export default async function SubscriptionsPage() {
         <ul className="divide-y divide-line rounded-card border border-line bg-card">
           {(plans ?? []).map((p) => (
             <li key={p.id as string}>
-              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
+              <div className="grid gap-2 px-4 py-3 text-sm sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
                 <span className="font-medium text-ink">{p.name as string} <span className="text-ink-muted">({p.code as string})</span>{p.is_active ? null : <span className="ml-2 text-xs text-ink-muted">Inactive</span>}</span>
-                <span className="text-ink-muted">{formatINR(p.price_paise as number)} / {p.billing_interval as string}{p.products_unlimited ? ' · unlimited products' : ` · up to ${p.max_products as number} products`}{p.users_unlimited ? ' · unlimited users' : ` · up to ${p.max_users as number} users`}</span>
-                <div className="flex items-center gap-3">
-                  <details className="text-sm">
+                <span className="text-xs text-ink-muted sm:text-sm">{formatINR(p.price_paise as number)} / {p.billing_interval as string}{p.products_unlimited ? ' · unlimited products' : ` · up to ${p.max_products as number} products`}{p.users_unlimited ? ' · unlimited users' : ` · up to ${p.max_users as number} users`}</span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <details className="w-full text-sm sm:w-auto">
                     <summary className="cursor-pointer text-burgundy">Edit</summary>
                     <div className="mt-3 rounded-card border border-line bg-cream/40">
                       <PlanEditForm plan={{ id: p.id as string, code: p.code as string, name: p.name as string, description: (p.description as string | null) ?? null, billing_interval: p.billing_interval as string, price_paise: p.price_paise as number, max_products: (p.max_products as number | null) ?? null, products_unlimited: Boolean(p.products_unlimited), max_users: (p.max_users as number | null) ?? null, users_unlimited: Boolean(p.users_unlimited), is_active: Boolean(p.is_active), features: (p.features as Record<string, unknown> | null) ?? null } as EditablePlan} />

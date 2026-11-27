@@ -29,8 +29,11 @@ export default async function QrPage() {
       />
 
       <section className="grid gap-4 rounded-card border border-line bg-card p-6 md:grid-cols-[220px_1fr] md:items-center" aria-labelledby="main-qr">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${base}?target=showroom&size=600`} alt={`QR code for ${owner.storeName}`} width={220} height={220} className="h-auto w-[220px] rounded-control border border-line bg-white p-2" />
+        <div className="grid justify-items-center gap-1.5 rounded-control border border-line bg-white p-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${base}?target=showroom&size=600`} alt={`QR code for ${owner.storeName}`} width={200} height={200} className="h-auto w-[200px]" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-burgundy">Powered by ZENTRO BuildMart</span>
+        </div>
         <div className="grid gap-3">
           <h2 id="main-qr" className="font-display text-2xl text-burgundy">Main showroom code</h2>
           <p className="text-sm text-ink-muted break-all">Opens {showroomUrl} through a tracked entry link.</p>

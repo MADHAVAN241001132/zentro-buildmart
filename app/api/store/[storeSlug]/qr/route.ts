@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { appUrl } from '@/lib/env';
-import { qrPng, targetUrl, type QrTarget } from '@/lib/qr';
+import { qrPng, resolvePublicOrigin, targetUrl, type QrTarget } from '@/lib/qr';
 import { trackedEntryUrl } from '@/lib/qr/entry';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { getStoreBySlug } from '@/lib/services/storefront';
@@ -50,7 +49,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ stor
     }
   }
 
-  const publicUrl = targetUrl(storeSlug, qrTarget);
+  const origin = resolvePublicOrigin(request);
+  const publicUrl = targetUrl(storeSlug, qrTarget, origin);
   const { data: token, error } = await admin.rpc('zb_ensure_qr_code', {
     p_store: store.id,
     p_type: qrTarget.type,
@@ -59,7 +59,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ stor
   });
   if (error || typeof token !== 'string') return NextResponse.json({ error: 'The code could not be prepared.' }, { status: 500 });
 
-  const png = await qrPng(trackedEntryUrl(appUrl(), token), size);
+  const png = await qrPng(trackedEntryUrl(origin, token), size, store.logoUrl);
   const name = `${storeSlug}-${target}${slug ? `-${slug}` : ''}.png`;
   return new Response(new Uint8Array(png), {
     headers: {

@@ -22,7 +22,7 @@ const NAV_LINKS = [
   { label: 'Business Solutions', href: '#solutions' },
   { label: 'Why BuildMart', href: '#why-buildmart' },
   { label: 'FAQ', href: '#faq' },
-  { label: 'Contact', href: '#contact' },
+  { label: 'Contact Us', href: '#contact-us' },
 ];
 
 export function MarketingNavbar() {

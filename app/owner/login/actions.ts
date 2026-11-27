@@ -24,7 +24,7 @@ export async function signInAction(_prev: LoginState, formData: FormData): Promi
     await supabase.auth.signOut();
     return { ok: false, message: 'This account is not linked to an active store' };
   }
-  redirect('/owner/cash');
+  redirect('/owner');
 }
 
 export async function signOutAction(): Promise<void> {

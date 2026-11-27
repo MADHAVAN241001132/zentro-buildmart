@@ -1,9 +1,9 @@
 import { PageHeader } from '@/components/owner/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { TicketUpdateForm } from '@/components/admin/ticket-update-form';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { TICKET_PRIORITIES, TICKET_STATUSES } from '@/lib/validation/admin';
+import { formatIST } from '@/lib/format-ist';
 import { Mail, Phone } from 'lucide-react';
-import { updateTicketAction } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +47,7 @@ export default async function SupportPage() {
                     <p className="font-semibold text-ink [overflow-wrap:anywhere]">{t.subject as string}</p>
                     <p className="text-xs text-ink-muted">
                       {(store as { name?: string } | null)?.name ?? 'Public Demo Request'} · {t.category as string} ·{' '}
-                      {new Date(t.created_at as string).toLocaleString('en-IN')}
+                      {formatIST(t.created_at as string)}
                       {selectedPlan && selectedPlan !== 'Not specified' ? ` · Plan: ${selectedPlan}` : ''}
                     </p>
                   </div>
@@ -71,18 +71,11 @@ export default async function SupportPage() {
                         <span>Email</span>
                       </a>
                     ) : null}
-                    <form action={updateTicketAction} className="flex flex-wrap items-center gap-2">
-                      <input type="hidden" name="ticketId" value={t.id as string} />
-                      <label className="sr-only" htmlFor={`s-${t.id as string}`}>Status</label>
-                      <select id={`s-${t.id as string}`} name="status" defaultValue={t.status as string} className="min-h-[38px] rounded-control border border-line bg-white px-2.5 py-1.5 text-xs sm:text-sm">
-                        {TICKET_STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-                      </select>
-                      <label className="sr-only" htmlFor={`p-${t.id as string}`}>Priority</label>
-                      <select id={`p-${t.id as string}`} name="priority" defaultValue={t.priority as string} className="min-h-[38px] rounded-control border border-line bg-white px-2.5 py-1.5 text-xs sm:text-sm">
-                        {TICKET_PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                      <button type="submit" className="min-h-[38px] rounded-control bg-burgundy px-3 py-1.5 text-xs font-semibold text-cream hover:bg-burgundy-deep sm:text-sm">Save</button>
-                    </form>
+                    <TicketUpdateForm
+                      ticketId={t.id as string}
+                      initialStatus={t.status as string}
+                      initialPriority={t.priority as string}
+                    />
                   </div>
                 </div>
 

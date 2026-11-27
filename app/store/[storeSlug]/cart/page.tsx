@@ -42,10 +42,10 @@ export default async function CartPage({ params }: { params: Promise<{ storeSlug
   const totals = cart.totals;
   const couponLabel = cart.coupon?.code ? t('cart.coupon', { code: cart.coupon.code }) : t('cart.discount');
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
+    <div className="grid min-w-0 gap-8 lg:grid-cols-[1fr_340px]">
       <section className="grid min-w-0 gap-4">
         <h1 className="font-display text-3xl text-burgundy">{t('cart.title')}</h1>
-        <ul className="grid gap-4">
+        <ul className="grid min-w-0 gap-4">
           {cart.lines.map((line) => {
             const priced = totals.lines.find((item) => item.key === line.itemId);
             return (
@@ -67,7 +67,7 @@ export default async function CartPage({ params }: { params: Promise<{ storeSlug
         </ul>
       </section>
 
-      <aside aria-label={t('cart.summary')} className="h-fit rounded-card border border-line bg-card p-6 lg:sticky lg:top-24">
+      <aside aria-label={t('cart.summary')} className="h-fit min-w-0 rounded-card border border-line bg-card p-4 sm:p-6 lg:sticky lg:top-24">
         <h2 className="font-display text-xl text-burgundy">{t('cart.summary')}</h2>
         <div className="mt-4">
           <GstBreakdown

@@ -31,6 +31,20 @@ export function MarketingFooter() {
 
             <div className="mt-2">
               <span className="text-[10px] font-bold uppercase tracking-widest text-[#C9A45C]">
+                Direct Contact
+              </span>
+              <div className="mt-1 flex flex-col gap-1 text-xs text-[#FFF4E6]/85">
+                <a href="tel:+916381337271" className="hover:text-[#C9A45C] transition-colors">
+                  +91 63813 37271
+                </a>
+                <a href="mailto:zentronetworks@gmail.com" className="hover:text-[#C9A45C] transition-colors">
+                  zentronetworks@gmail.com
+                </a>
+              </div>
+            </div>
+
+            <div className="mt-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#C9A45C]">
                 Brand Tagline
               </span>
               <p className="font-display text-sm font-bold text-[#FFF4E6] mt-0.5">
